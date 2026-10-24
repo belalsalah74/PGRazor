@@ -33,6 +33,10 @@ globalThis.PGRazorLocation = Object.freeze({create({Java, control, isDisposed, b
             // Current game builds also query Niantic's foreground permission service.
             const Permissions = Java.use('com.nianticlabs.platform.niaadvsynccore.permission.Permissions');
             const PermissionStatus = Java.use('com.nianticlabs.platform.niaadvsynccore.permission.PermissionStatus');
+            // Early startup (notably MuMu) can expose null enum fields before
+            // their class initializer has run. Invoke the enum API first.
+            Permissions.values();
+            PermissionStatus.values();
             const locationFlag = String(Permissions.LOCATION.value.getValue());
             const preciseFlag = String(Permissions.PRECISE_LOCATION.value.getValue());
             const permissionStatus = Java.use('com.nianticlabs.platform.niaadvsyncpermissions.internal.InternalPermissionManager')

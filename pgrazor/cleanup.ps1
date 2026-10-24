@@ -101,8 +101,12 @@ foreach ($directory in Get-ChildItem -LiteralPath $nonroot -Directory) {
         }
         $outputs = @(Get-Property $report 'outputs')
         if ($package -notin @('dev.pgrazor.preview', 'com.nianticlabs.pokemongo') -or
-            $abi -notin @('arm64-v8a', 'x86_64', 'panel-only') -or $outputs.Count -eq 0) {
+            $abi -notin @('arm64-v8a', 'x86_64', 'auto', 'panel-only') -or $outputs.Count -eq 0) {
             throw 'Missing/unsupported package, runtime ABI or outputs'
+        }
+        if ($abi -eq 'auto') {
+            $bundledAbis = @(Get-Property $report 'runtime_abis')
+            if ($bundledAbis.Count -ne 2 -or 'arm64-v8a' -notin $bundledAbis -or 'x86_64' -notin $bundledAbis) { throw 'Incomplete unified runtime receipt' }
         }
         $restorable = $true
         foreach ($output in $outputs) {

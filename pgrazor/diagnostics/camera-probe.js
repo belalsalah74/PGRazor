@@ -84,7 +84,7 @@ double monotonic_ms(void) {
         function readableCode(address,length) {
             if(address.compare(module.base)<0 || address.add(length).compare(module.base.add(module.size))>0)return false;
             const range=Process.findRangeByAddress(address);
-            return range!==null && range.protection.includes('r') && range.protection.includes('x') &&
+            return range!==null && range.protection.includes('r') && (range.protection.includes('x')||(typeof PGRazorGuestCode==='function'&&PGRazorGuestCode(module,address,length,range))) &&
                 address.add(length).compare(range.base.add(range.size))<=0;
         }
         function words(address,expected) {
@@ -216,7 +216,7 @@ double monotonic_ms(void) {
                     function executable(address,length) {
                         if(address.isNull() || address.compare(module.base)<0 || address.add(length).compare(module.base.add(module.size))>0)return false;
                         const range=Process.findRangeByAddress(address);
-                        return !!range && range.protection.includes('r') && range.protection.includes('x') && address.add(length).compare(range.base.add(range.size))<=0;
+                        return !!range && range.protection.includes('r') && (range.protection.includes('x')||(typeof PGRazorGuestCode==='function'&&PGRazorGuestCode(module,address,length,range))) && address.add(length).compare(range.base.add(range.size))<=0;
                     }
                     if(!executable(sample.debugAddress,80) || DEBUG_INFO_WORDS.some((word,i)=>sample.debugAddress.add(i*4).readU32()!==word))
                         return {unavailable:'map-debug-info-abi-unverified'};

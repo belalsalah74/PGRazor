@@ -405,6 +405,7 @@ class PackageTests(unittest.TestCase):
             (work/'runtime').mkdir()
             shutil.copyfile(ROOT/'runtime/bundles.json', work/'runtime/bundles.json')
             (work/'runtime/location.js').write_bytes(b'// location fixture\n')
+            (work/'runtime/translated.js').write_bytes(b'// translated fixture\n')
             for part in json.loads((ROOT/'runtime/bundles.json').read_text())['quick-close.js']:
                 if part.startswith('runtime/'):
                     fixture=work/part; fixture.parent.mkdir(parents=True,exist_ok=True)
@@ -443,7 +444,7 @@ class PackageTests(unittest.TestCase):
                     with zipfile.ZipFile(report['outputs'][0]['file']) as archive:
                         mode=json.loads(archive.read('assets/pgrazor/mode.json'))
                         bundled=archive.read('assets/pgrazor/embedded-agent.js')
-                        self.assertEqual(bundled,b'// location fixture\n\n;\n// embedded fixture\n')
+                        self.assertEqual(bundled,b'// location fixture\n\n;\n// translated fixture\n\n;\n// embedded fixture\n')
                         self.assertEqual(report['agent_sha256'],hashlib.sha256(bundled).hexdigest())
                         for name,receipt in report['script_bundles'].items():
                             self.assertEqual(receipt['sha256'],hashlib.sha256(archive.read('assets/pgrazor/'+name)).hexdigest())
@@ -451,6 +452,10 @@ class PackageTests(unittest.TestCase):
                                              json.loads((work/'runtime/bundles.json').read_text())[name])
                             for part in receipt['sources']:
                                 self.assertEqual(part['sha256'],runtime_assets.sha256(work/part['path']))
+                        self.assertEqual(mode['preferredAbi'],'')
+                        self.assertEqual(mode['runtimeAbis'],['arm64-v8a','x86_64'])
+                        for abi in mode['runtimeAbis']:
+                            self.assertEqual(archive.read('assets/pgrazor/'+abi+'/libfrida-gadget.so'),b'gadget fixture')
                         self.assertEqual(mode.get('il2cppSurvey',False),options.get('il2cpp_survey',False))
                         self.assertEqual(mode.get('cameraProbe',False),camera_enabled)
                         self.assertEqual(mode.get('cameraSample',False),options.get('camera_sample',False))

@@ -1,6 +1,6 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 const feature=require('./feature-fixture.cjs');
-function fixture(){
+function fixture(guest=false){
  let now=1000;const calls=[],events=[],held=new Set(),hooks={},nil={isNull:()=>true};
  const obj=(k,f={})=>({k,f,isNull:()=>false,equals(o){return this===o;},add(off){return {readFloat:()=>this.f[off]||0,writeFloat:v=>this.f[off]=v,writeS32:v=>this.f.sequenceState=v};}});
  const types={6149:'rpc',6154:'gifting',5916:'profile',5936:'panel',6240:'open',6258:'send',6268:'list',6211:'giftWidget',6176:'stickerWidget',6195:'sheet',6164:'service'};
@@ -19,8 +19,9 @@ function fixture(){
   hold,target:h=>h.o,freeHandle:h=>held.delete(h),alive:o=>!o.dead,exact:(o,k)=>o.k===k,readPtr:(o,f)=>o.f[f]||nil,readS32:(o,f)=>o.f[f],present:(o,f)=>!!o.f[f],rocketBool:(m,o)=>!!o.f[m.method],itemInt:(m,o,args)=>['listCount','rowCount','stickerCount'].includes(m.method)?o.f.items.length:args[0].f.count||0,itemArgs:a=>a,itemNumber:n=>n,
   invoke:(m,o,args)=>{if(m&&m.method)m=m.method;if(m==='sendable')return o.f.gifts;if(m==='getEnumerator')return o;if(m==='moveGift')return {value:o.f.items.length>0,isNull:()=>false};if(m==='currentGift')return o.f.items[0];if(m==='disposeGift')return nil;if(m==='niaId')return args[0].f.playerId;if(m==='panel')return panel;if(m==='inventory')return service.f.inventory||obj('stickerList',{items:[]});if(m==='stickerItem')return o.f.items[args[0]];if(m==='selectSticker')o.f.sendSticker=args[0];if(m==='listItem'||m==='rowItem')return o.f.items[args[0]];if(m==='giftBox')return o.f.proto;calls.push(m);if(m==='giftClick')o.f.clicked=true;if(m==='selectFirst')o.f.chosen=args[0];return nil;},
   api:{object_get_virtual_method:(o,m)=>({method:m,isNull:()=>false}),object_unbox:o=>({readU8:()=>o.value?1:0}),field_get_value:()=>{},string_length:o=>o.f.value.length,string_chars:o=>({readUtf16String:()=>o.f.value})},event:(s,k,e)=>events.push([k,e]),unity:()=>true,Interceptor:{replace:(n,fn)=>replacements[n]=fn,revert:()=>{},attach:(n,h)=>{hooks[n]=h;return{};}}};
- const module=feature('gifts',ctx);ctx.r=module.state;ctx.tick=module.tick;ctx.bundled=module.bundled;
- function hook(name,args){if(replacements[name])return replacements[name](args[0],nil);const h=hooks[name],self={threadId:1};h.onEnter.call(self,args);h.onLeave.call(self);}
+ if(guest){for(const name of ['openReady','listReady'])methods[name].address={readU32:()=>0xd65f03c0};ctx.p.catchCanvas={address:'canvas'};}
+ const module=feature('gifts',ctx,guest?{PGRazorGuestCode:()=>true}:{});ctx.r=module.state;ctx.tick=module.tick;ctx.bundled=module.bundled;
+ function hook(name,args){if(replacements[name])return replacements[name](args[0],nil);const h=hooks[name],self={threadId:1};h.onEnter.call(self,args);if(h.onLeave)h.onLeave.call(self);}
  hook('profileOpen',[profile,nil,nil]);
  return {ctx,s,held,calls,events,obj,button,service,open,send,panel,a,b,nil,hold,hook,stickerType,detailType,tick(ms=700){now+=ms;ctx.tick(now);}};
 }
@@ -50,3 +51,6 @@ console.log('PASS gifts: direct incoming dialog without profile, manual click de
  const cb=f.obj('callback',{callbackService:rpc,callbackId:f.obj('string',{value:'a'})});f.hook('rpcResult',[cb,f.obj('Holoholo.Rpc.SendGiftOutProto',{sendResult:1})]);f.hook('rpcFinally',[cb]);f.tick();assert.equal(f.ctx.bundled(),null);assert.deepEqual(f.calls,['reserve','rpcSend','returnSticker']);assert.ok(f.events.some(([k,e])=>k==='gift-bundled-result'&&e.success));
 }
 console.log('PASS bundled send: explicit trigger, one in flight, owned sticker, server response and reservation release');
+
+{const f=fixture(true);f.open.f.state=1;f.hook('canvas',[f.open]);f.tick();assert.deepEqual(f.calls,[]);f.open.f.state=2;f.tick();f.tick();assert.deepEqual(f.calls,['open']);f.hook('canvas',[f.open]);f.tick();assert.deepEqual(f.calls,['open']);f.s.stopping=true;f.tick();assert.equal(f.held.size,0);}
+console.log('PASS translated gifts: visibility capture waits for open state, deduplicates, frees roots on stop');

@@ -72,7 +72,7 @@
     function executable(module,address,size) {
         if(address.isNull()||!address.and(3).isNull()||address.compare(module.base)<0||address.add(size).compare(module.base.add(module.size))>0)throw Error('invalid-code-range');
         const range=Process.findRangeByAddress(address);
-        if(!range||range.protection.indexOf('r')<0||range.protection.indexOf('x')<0||address.add(size).compare(range.base.add(range.size))>0)throw Error('code-not-rx');
+        if(!range||range.protection.indexOf('r')<0||!(range.protection.includes('x')||(typeof PGRazorGuestCode==='function'&&PGRazorGuestCode(module,address,size,range)))||address.add(size).compare(range.base.add(range.size))>0)throw Error('code-not-rx');
     }
     function prepare(module,api,domain) {
         let owned=null;

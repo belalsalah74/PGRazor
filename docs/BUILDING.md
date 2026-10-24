@@ -32,6 +32,16 @@ Use the run directory printed by the first command. The second command merges th
 
 Single-APK packaging is new and still needs a disconnected-phone install/launch check. Existing split builds remain available in the run directory as a rollback option. Preserve a tested installation until the new candidate has been checked.
 
+## Runtime selection on phones and MuMu
+
+The default game build bundles ARM64 and x86-64 hook runtimes in the same APK and selects one from the native process architecture at startup. The game libraries remain ARM64. MuMu translates those libraries while its Android Java process runs as x86-64.
+
+On an ARM64 phone, the existing runtime handles both Android controls and game hooks. On MuMu, the x86-64 runtime handles Android location/permission hooks and loads a second ARM64 runtime through the app class loader for Unity hooks. They exchange settings and events through a private per-process mailbox. Stale snapshots revoke feature leases; nothing requires a root daemon or an external controller.
+
+Translated executable code is checked against the ARM ELF executable segments and the existing instruction fingerprints. Two empty gift-open callbacks use completed GUI-state observation because MuMu cannot place an interceptor on their single return instruction. The same APK has passed native-feature startup checks on a Pixel phone and MuMu with location permission denied. Preliminary gameplay testing passed on both; broader MuMu regression testing remains limited.
+
+`--runtime-abi arm64-v8a` or `--runtime-abi x86_64` can produce a restricted diagnostic build, but normal builds and the release workflow use automatic runtime selection. The release build information records the bundled hook runtime architectures separately from the game's ARM64 architecture.
+
 ## Signing
 
 Local development creates an ignored `build/pgrazor-development.jks` key with alias `pgrazor`. This key uses a development password; configure a dedicated strong-password keystore for releases. Pre-release builds do not migrate previous pre-release settings or identifiers.

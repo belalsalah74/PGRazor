@@ -58,8 +58,19 @@ public final class BootstrapProvider extends ContentProvider {
             if(!android.os.Process.is64Bit()) throw new IOException("This prototype supports only 64-bit app processes");
             String nativeAbi=RuntimeAbi.nativeProcessAbi();
             Control.event("native-process-abi","native="+nativeAbi+" requested="+abi+" source=/proc/self/exe");
-            abi=RuntimeAbi.requireMatch(abi,nativeAbi);
-            if((survey||cameraProbe||sceneProbe||interactionProbe||quickSummary||quickBall)&&!"arm64-v8a".equals(abi)) throw new IOException("Native diagnostics require a native ARM64 process");
+            org.json.JSONArray bundled=mode.optJSONArray("runtimeAbis");
+            String[] available=new String[bundled==null?1:bundled.length()];
+            if(bundled==null) available[0]=abi;
+            else for(int i=0;i<available.length;i++) available[i]=bundled.getString(i);
+            abi=RuntimeAbi.select(abi,nativeAbi,available);
+            boolean translated="x86_64".equals(abi)&&java.util.Arrays.asList(available).contains("arm64-v8a");
+            if(!"arm64-v8a".equals(abi)&&!translated) {
+                // Java GPS/UI use the host ABI. ARM Unity callbacks cannot be
+                // installed into the host runtime across MuMu's translator.
+                survey=cameraProbe=cameraSample=cameraSteering=false;
+                sceneProbe=sceneObserve=interactionProbe=quickSummary=quickClose=quickBall=false;
+                Control.event("native-features-unavailable","ARM gameplay hooks unavailable in translated process; location and Java controls remain active");
+            }
             File directory=new File(context.getCodeCacheDir(),"pgrazor-"+android.os.Process.myPid()+"-"+System.currentTimeMillis());
             if(!directory.mkdirs()) throw new IOException("Cannot create private runtime directory");
             File library=copyAsset(context,"pgrazor/"+abi+"/libfrida-gadget.so",directory,"libfrida-gadget.so");
@@ -106,6 +117,26 @@ public final class BootstrapProvider extends ContentProvider {
                 parameters.put("quickBallPath",feature.getAbsolutePath()).put("quickBall",true);
                 Control.event("quick-ball-bundled","Experimental 20x catch and break-free ball animation; summary screens remain; bundled; acceleration defaults off and requires UI enablement");
             }
+            File gameLibrary=null;
+            if(translated) {
+                File mailbox=new File(directory,"mailbox");
+                if(!mailbox.mkdirs()) throw new IOException("Cannot create runtime mailbox");
+                for(String name:new String[]{"state.json","events.json"}) {
+                    try(FileOutputStream out=new FileOutputStream(new File(mailbox,name))) {out.write("{}".getBytes(StandardCharsets.UTF_8));}
+                }
+                parameters.put("mailboxPath",mailbox.getAbsolutePath()).put("mailboxSession",directory.getName());
+                JSONObject gameParameters=new JSONObject(parameters.toString()).put("translatedRole","native")
+                    .put("startupLog",new File(directory,"game-startup.txt").getAbsolutePath());
+                gameLibrary=copyAsset(context,"pgrazor/arm64-v8a/libfrida-gadget.so",directory,"libpgrazor-game.so");
+                JSONObject gameConfig=new JSONObject().put("runtime","qjs").put("interaction",new JSONObject()
+                    .put("type","script").put("path",script.getAbsolutePath()).put("parameters",gameParameters).put("on_change","ignore"));
+                try(FileOutputStream out=new FileOutputStream(new File(directory,"libpgrazor-game.config"))) {
+                    out.write(gameConfig.toString().getBytes(StandardCharsets.UTF_8));
+                }
+                parameters.put("translatedRole","host");
+                for(String key:new String[]{"surveyPath","cameraProbePath","sceneProbePath","interactionProbePath","quickSummaryPath","quickBallPath","quickCatchWaitPath"}) parameters.remove(key);
+                for(String key:new String[]{"cameraSample","cameraSteering","sceneObserve","interactionProbe","quickSummary","quickClose","quickBall"}) parameters.put(key,false);
+            }
             JSONObject interaction=new JSONObject().put("type","script").put("path",script.getAbsolutePath()).put("parameters",parameters).put("on_change","ignore");
             JSONObject config=new JSONObject().put("interaction",interaction).put("runtime","qjs");
             try(FileOutputStream out=new FileOutputStream(new File(directory,"libfrida-gadget.config"))) {
@@ -127,6 +158,15 @@ public final class BootstrapProvider extends ContentProvider {
             },20000);
             System.load(library.getAbsolutePath());
             Control.event("gadget-loaded","Native library loaded; awaiting location-hook readiness");
+            if(gameLibrary!=null) {
+                final File translatedLibrary=gameLibrary;
+                new Handler(Looper.getMainLooper()).postDelayed(() -> new Thread(() -> {
+                    try {
+                        System.load(translatedLibrary.getAbsolutePath());
+                        Control.event("game-gadget-loaded","Translated ARM runtime loaded; awaiting native hooks");
+                    } catch(Throwable error) { Control.event("game-gadget-error",error.toString()); }
+                },"pgrazor-game-loader").start(),1500);
+            }
         } catch(Throwable error) {
             Control.embedded("Embedded adapter failed - open Run log");
             Control.event("bootstrap-error",error.toString());

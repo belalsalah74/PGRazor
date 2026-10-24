@@ -4,6 +4,15 @@
  features.gifts=function({s,p,api,classes,fields,GIFT_TYPES,GIFT_OPEN_SEQUENCE,STATE_OPEN,ptr,Process,Memory,NativeFunction,NativeCallback,Interceptor,hold,target,freeHandle,alive,exact,readPtr,readS32,present,rocketBool,itemInt,itemArgs,itemNumber,invoke,event,unity}){
  // Gifts are scoped to the friend profile or incoming gift dialog the user opens.
 
+ const guestOpenObservers=[];
+ function guestOpenTick(){for(const observer of guestOpenObservers){
+  if(!observer.root)continue;
+  const gui=target(observer.root);
+  if(s.stopping||!alive(gui)||(observer.fired&&readS32(gui,fields.currentState)!==STATE_OPEN)){
+   freeHandle(observer.root);observer.root=null;observer.fired=false;continue;
+  }
+  if(!observer.fired&&readS32(gui,fields.currentState)===STATE_OPEN){observer.fired=true;observer.fn([gui]);}
+ }}
  const incomingGift={gui:null,attempted:false,automated:false,deadline:0,next:0,wait:null};
 
  function incomingClear(){freeHandle(incomingGift.gui);Object.assign(incomingGift,{gui:null,attempted:false,automated:false,deadline:0,next:0,wait:null});}
@@ -132,7 +141,7 @@
 
  }
 
- function giftTick(now){const r=giftState,t=p.gifts;if(!t)return;bundledTick(now);incomingTick(now);if(s.stopping){incomingClear();giftReset();return;}
+ function giftTick(now){const r=giftState,t=p.gifts;if(!t)return;guestOpenTick();bundledTick(now);incomingTick(now);if(s.stopping){incomingClear();giftReset();return;}
 
   if(!r.profile)return;if(!(now<s.giftLease)||!(s.giftMask&3)){if(r.phase!=='idle'){r.failed=true;giftChildren();}return;}if(r.failed||now<r.next)return;r.next=now+150;
 
@@ -226,7 +235,15 @@
 
  if(p.gifts){const m=p.gifts.methods,f=p.gifts.fields;
 
-  function giftObserve(method,fn,after=false){s.listeners.push(Interceptor.attach(method.address,{onEnter(a){this.roots=[];this.args=null;if(!unity(this.threadId)||s.stopping)return;try{if(after){this.args=[a[0],a[1],a[2]];this.roots.push(hold(a[0]));if(method===m.giftUpdate&&!a[2].isNull())this.roots.push(hold(a[2]));}else fn(a);}catch(e){giftState.failed=true;event(s,'gift-error',{reason:String(e)});}},onLeave(){try{if(this.args&&!s.stopping)fn(this.args);}catch(e){giftState.failed=true;event(s,'gift-error',{reason:String(e)});}finally{for(const h of this.roots)freeHandle(h);}}}));}
+  function giftObserve(method,fn,after=false){
+   // These exact-build HandleOpenComplete methods are a single RET. Houdini
+   // cannot allocate a nearby hook trampoline. Observe the validated GUI's
+   // completed-open state instead, after its normal visibility transition.
+   if(typeof PGRazorGuestCode==='function'&&after&&(method===m.openReady||method===m.listReady)&&method.address.readU32()===0xd65f03c0){
+    if(!p.catchCanvas)throw Error('guest-gift-visibility-unavailable');
+    guestOpenObservers.push({klass:classes[GIFT_TYPES[method===m.openReady?6240:6268]],fn,root:null,fired:false});return;
+   }
+   s.listeners.push(Interceptor.attach(method.address,{onEnter(a){this.roots=[];this.args=null;if(!unity(this.threadId)||s.stopping)return;try{if(after){this.args=[a[0],a[1],a[2]];this.roots.push(hold(a[0]));if(method===m.giftUpdate&&!a[2].isNull())this.roots.push(hold(a[2]));}else fn(a);}catch(e){giftState.failed=true;event(s,'gift-error',{reason:String(e)});}},onLeave(){try{if(this.args&&!s.stopping)fn(this.args);}catch(e){giftState.failed=true;event(s,'gift-error',{reason:String(e)});}finally{for(const h of this.roots)freeHandle(h);}}}));}
 
   giftObserve(m.sequence,a=>{const r=incomingGift;if(!r.gui||!r.automated||!(s.giftMask&1)||!(s.now()<s.giftLease)||!exact(a[0],classes[GIFT_OPEN_SEQUENCE]))return;const gui=readPtr(a[0],f.sequenceGui),response=readPtr(a[0],f.sequenceResponse);if(!gui.equals(target(r.gui))||!exact(response,classes['Holoholo.Rpc.OpenGiftOutProto'])||readS32(response,f.openResult)!==p.gifts.openSuccess||readS32(a[0],f.sequenceState)!==0)return;
 
@@ -296,6 +313,13 @@
 
   giftObserve(m.stickerInit,a=>{const r=giftState;if(r.profile&&r.stickerStarted&&r.stickerWidgets.length<256&&!r.stickerWidgets.some(h=>target(h).equals(a[0])))r.stickerWidgets.push(hold(a[0]));},true);
 
+  if(guestOpenObservers.length)s.listeners.push(Interceptor.attach(p.catchCanvas.address,{onEnter(a){
+   if(!unity(this.threadId)||s.stopping)return;
+   try{for(const observer of guestOpenObservers){if(!exact(a[0],observer.klass))continue;
+    if(observer.root&&target(observer.root).equals(a[0]))continue;
+    if(observer.root)freeHandle(observer.root);observer.root=hold(a[0]);observer.fired=false;
+   }}catch(e){giftState.failed=true;event(s,'gift-error',{reason:'guest-visibility:'+e});}
+  }}));
  }
 
 

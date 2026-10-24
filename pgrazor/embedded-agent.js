@@ -72,6 +72,7 @@ function bootLog(text) {
     } catch (_) {}
 }
 let locationAdapter = null;
+let translatedBridge = null, translatedTimer = null;
 function rollback() {
     if (locationAdapter !== null) { locationAdapter.stop(); locationAdapter = null; }
     for (const method of hooks) method.implementation = null;
@@ -328,9 +329,11 @@ function scheduleQuickSummary() {
     if (bootParameters.quickSummary !== true || !bootParameters.quickSummaryPath) return;
     try {
         control.configureQuickSummary(true);
-        installSummaryLifecycleHooks();
-        installTransferPolicyHooks();
-        installBerryPolicyHooks();
+        if(bootParameters.translatedRole!=='native') {
+            installSummaryLifecycleHooks();
+            installTransferPolicyHooks();
+            installBerryPolicyHooks();
+        }
     } catch (error) {
         quickSummaryFailed = true;
         restoreSummaryLifecycleHooks();
@@ -435,6 +438,7 @@ function scheduleQuickBall() {
     if (bootParameters.quickBall!==true || !bootParameters.quickBallPath) return;
     try {
         control.configureQuickBall(true);
+        if(bootParameters.translatedRole!=='native') {
         const methods=[
             [control.setQuickBallEnabled.overload('boolean'),false],
             [control.setQuickBallReady.overload('boolean','java.lang.String'),false],
@@ -451,6 +455,7 @@ function scheduleQuickBall() {
                 if(always)revokeQuickSummary();
                 return method.call(this,...args);
             };
+        }
         }
     } catch(error) {
         quickBallFailed=true;restoreBallLifecycleHooks();ballUnavailable(error);return;
@@ -581,6 +586,32 @@ function heartbeat() {
 }
 function start() {
     if (disposed) return;
+    if(bootParameters.translatedRole==='native') {
+        PGRazorTranslated.installCodeValidation();
+        // ARM has the game libraries; ART lives in the x86-64 host runtime.
+        // Only Control messages cross this boundary, never Java object handles.
+        globalThis.Java={performNow:fn=>fn(),scheduleOnMainThread:fn=>fn()};
+        translatedBridge=PGRazorTranslated.client({io:PGRazorTranslated.files(bootParameters.mailboxPath),session:bootParameters.mailboxSession});
+        control=translatedBridge.control;
+        let started=false,lastPolicy='',lastBeat=0;
+        translatedTimer=setInterval(()=>{try {
+            if(!translatedBridge.tick()) {revokeQuickSummary();revokeQuickBall();return;}
+            if(!started) {
+                started=true;
+                if(bootParameters.cameraSteering)control.configureCameraSteering(true);
+                if(bootParameters.cameraSample)control.configureCameraDiagnostics(true);
+                if(bootParameters.interactionProbe)control.configureInteractionDiagnostics(true);
+                control.event('translated-ready','ARM game runtime connected to host Java controls');
+                scheduleDiagnostic();scheduleInteraction();scheduleQuickSummary();scheduleQuickBall();
+            }
+            const policy=JSON.stringify(['active','quickSummaryAllowed','quickBallAllowed','autoTransferAllowed','transferProtect','itemRules','quickSpinAllowed','mapTapMode','mapTapEpoch','throwGrade','throwCurve'].map(name=>control[name]()));
+            if(lastPolicy&&lastPolicy!==policy){revokeQuickSummary();revokeQuickBall();}
+            lastPolicy=policy;
+            syncTransferPolicy();syncBerryPolicy();
+            if(Date.now()-lastBeat>=200){lastBeat=Date.now();heartbeat();}
+        }catch(error){revokeQuickSummary();revokeQuickBall();bootLog('translated-runtime-error: '+error);}},50);
+        return;
+    }
     try {
         const source = File.readAllText(bootParameters.bridgePath);
         globalThis.Java = Script.evaluate('/pgrazor-java-bridge.js', source + '\nbridge;');
@@ -610,6 +641,11 @@ function start() {
                     hooks.push(method);
                 }
                 control.connect();
+                if(bootParameters.translatedRole==='host') {
+                    translatedBridge=PGRazorTranslated.host({io:PGRazorTranslated.files(bootParameters.mailboxPath),control,session:bootParameters.mailboxSession});
+                    translatedBridge.tick();
+                    translatedTimer=setInterval(()=>Java.performNow(()=>translatedBridge.tick()),50);
+                }
                 // Game service class initialization can wait on the main thread.
                 // Do not initialize it from the Gadget Java.perform worker during startup.
                 Java.scheduleOnMainThread(() => {
@@ -642,6 +678,7 @@ rpc.exports = {
     init(stage, parameters) { bootParameters = parameters || {}; setImmediate(start); },
     dispose() {
         disposed = true;
+        if(translatedTimer!==null){clearInterval(translatedTimer);translatedTimer=null;}
         if (googleSignInTimer !== null) { clearInterval(googleSignInTimer); googleSignInTimer = null; }
         if (googleSignInPending && typeof Java !== 'undefined') Java.performNow(() => {
             try { Java.use('dev.pgrazor.GoogleBrowserAuth').cancel(googleSignInPending.id); }
@@ -672,6 +709,7 @@ rpc.exports = {
                 Java.scheduleOnMainThread(() => control.disconnect());
             }
         });
+        if(translatedBridge!==null){translatedBridge.stop();translatedBridge=null;}
         return Promise.all([diagnosticStopped,interactionStopped,summaryStopped,ballStopped,stopQuickCatchWait()]);
     }
 };

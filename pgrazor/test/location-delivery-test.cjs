@@ -20,8 +20,8 @@ const unityPermission=method(()=>false),pluginPermission=method(()=>false);
 const permissionStatus=method(()=>"denied");
 const classes={
  'TestProvider':{},'com.nianticlabs.nia.location.NianticLocationProvider$ProviderListener':{},
- 'com.nianticlabs.platform.niaadvsynccore.permission.Permissions':{LOCATION:{value:{getValue:()=>1}},PRECISE_LOCATION:{value:{getValue:()=>16}}},
- 'com.nianticlabs.platform.niaadvsynccore.permission.PermissionStatus':{GRANTED_IN_USE:{value:'in-use'},GRANTED_ALWAYS:{value:'always'}},
+ 'com.nianticlabs.platform.niaadvsynccore.permission.Permissions':{LOCATION:{value:null},PRECISE_LOCATION:{value:null},values(){this.LOCATION.value={getValue:()=>1};this.PRECISE_LOCATION.value={getValue:()=>16};return [this.LOCATION.value,this.PRECISE_LOCATION.value];}},
+ 'com.nianticlabs.platform.niaadvsynccore.permission.PermissionStatus':{GRANTED_IN_USE:{value:null},GRANTED_ALWAYS:{value:null},values(){this.GRANTED_IN_USE.value='in-use';this.GRANTED_ALWAYS.value='always';return ['in-use','always'];}},
  'com.nianticlabs.platform.niaadvsyncpermissions.internal.InternalPermissionManager':{permissionStatus},
  'com.unity3d.player.UnityPermissions':{hasUserAuthorizedPermission:unityPermission},
  'com.unity3d.plugin.UnityAndroidPermissions':{IsPermissionGranted:pluginPermission},

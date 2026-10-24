@@ -108,7 +108,7 @@ def release(run, destination):
     nonroot.command(build.TOOLS/'apksigner.bat', 'verify', signed)
     nonroot.command(build.TOOLS/'zipalign.exe', '-c', '-P', '16', '4', signed)
     (destination/'SHA256SUMS.txt').write_text(runtime_assets.sha256(signed)+'  PGRazor.apk\n', encoding='utf8')
-    (destination/'build-info.json').write_text(json.dumps({'game_version':'0.433.1','game_version_code':2026101502,'architecture':'arm64-v8a','input_sha256':report['input_sha256'],'apk_sha256':runtime_assets.sha256(signed),'source_commit':os.environ.get('GITHUB_SHA'),'device_tested':False},indent=2)+'\n',encoding='utf8')
+    (destination/'build-info.json').write_text(json.dumps({'game_version':'0.433.1','game_version_code':2026101502,'architecture':'arm64-v8a','hook_runtime_architectures':report.get('runtime_abis',[report.get('runtime_abi','arm64-v8a')]),'input_sha256':report['input_sha256'],'apk_sha256':runtime_assets.sha256(signed),'source_commit':os.environ.get('GITHUB_SHA'),'device_tested':False},indent=2)+'\n',encoding='utf8')
     unsigned.unlink(); aligned.unlink()
     print('Release candidate:', signed)
     return signed

@@ -104,7 +104,7 @@ void on_leave(GumInvocationContext *ic){Match *m=GUM_IC_GET_INVOCATION_DATA(ic,M
     function executable(module,address,size) {
         if(address.isNull()||!address.and(3).isNull()||address.compare(module.base)<0||address.add(size).compare(module.base.add(module.size))>0)throw Error('invalid-code-range');
         const range=Process.findRangeByAddress(address);
-        if(!range||range.protection.indexOf('r')<0||range.protection.indexOf('x')<0||address.add(size).compare(range.base.add(range.size))>0)throw Error('code-not-rx');
+        if(!range||range.protection.indexOf('r')<0||!(range.protection.includes('x')||(typeof PGRazorGuestCode==='function'&&PGRazorGuestCode(module,address,size,range)))||address.add(size).compare(range.base.add(range.size))>0)throw Error('code-not-rx');
     }
     function pointerHandleAbi(module) {
         // Narrow fingerprint of the shipped 6000.3.22f1 ARM64 implementation.
@@ -113,7 +113,7 @@ void on_leave(GumInvocationContext *ic){Match *m=GUM_IC_GET_INVOCATION_DATA(ic,M
         function readableCode(address,length) {
             if(address.compare(module.base)<0 || address.add(length).compare(module.base.add(module.size))>0)return false;
             const range=Process.findRangeByAddress(address);
-            return range!==null && range.protection.includes('r') && range.protection.includes('x') &&
+            return range!==null && range.protection.includes('r') && (range.protection.includes('x')||(typeof PGRazorGuestCode==='function'&&PGRazorGuestCode(module,address,length,range))) &&
                 address.add(length).compare(range.base.add(range.size))<=0;
         }
         function words(address,expected) {

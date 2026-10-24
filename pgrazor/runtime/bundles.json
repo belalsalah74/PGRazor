@@ -1,6 +1,7 @@
 {
   "embedded-agent.js": [
     "runtime/location.js",
+    "runtime/translated.js",
     "embedded-agent.js"
   ],
   "quick-close.js": [

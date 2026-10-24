@@ -211,7 +211,7 @@ function clock(){const libc=Process.findModuleByName('libc.so');const address=li
 
 function checkBytes(address,hex){const bytes=new Uint8Array(address.readByteArray(hex.length/2));if(bytes.length!==hex.length/2)throw Error('short-instruction-read');for(let i=0;i<bytes.length;i++)if(bytes[i]!==parseInt(hex.slice(i*2,i*2+2),16))throw Error('unsupported-instructions');}
 
-function executable(module,address,size){if(address.isNull()||!address.and(3).isNull()||address.compare(module.base)<0||address.add(size).compare(module.base.add(module.size))>0)throw Error('invalid-code-range');const range=Process.findRangeByAddress(address);if(!range||range.protection.indexOf('r')<0||range.protection.indexOf('x')<0||address.add(size).compare(range.base.add(range.size))>0)throw Error('code-not-rx');}
+function executable(module,address,size){if(address.isNull()||!address.and(3).isNull()||address.compare(module.base)<0||address.add(size).compare(module.base.add(module.size))>0)throw Error('invalid-code-range');const range=Process.findRangeByAddress(address);if(!range||range.protection.indexOf('r')<0||!(range.protection.includes('x')||(typeof PGRazorGuestCode==='function'&&PGRazorGuestCode(module,address,size,range)))||address.add(size).compare(range.base.add(range.size))>0)throw Error('code-not-rx');}
 
 function pointerHandleAbi(module){
 
@@ -219,7 +219,7 @@ function pointerHandleAbi(module){
 
  // identical to quick-ball.js. No GC handle function is called until it verifies.
 
- function readableCode(address,length){if(address.compare(module.base)<0||address.add(length).compare(module.base.add(module.size))>0)return false;const range=Process.findRangeByAddress(address);return range!==null&&range.protection.includes('r')&&range.protection.includes('x')&&address.add(length).compare(range.base.add(range.size))<=0;}
+ function readableCode(address,length){if(address.compare(module.base)<0||address.add(length).compare(module.base.add(module.size))>0)return false;const range=Process.findRangeByAddress(address);return range!==null&&range.protection.includes('r')&&(range.protection.includes('x')||(typeof PGRazorGuestCode==='function'&&PGRazorGuestCode(module,address,length,range)))&&address.add(length).compare(range.base.add(range.size))<=0;}
 
  function words(address,expected){return readableCode(address,expected.length*4)&&expected.every((word,i)=>address.add(i*4).readU32()===word);}
 
@@ -973,7 +973,7 @@ function prepare(module,api,domain){
 
 function event(s,kind,fields){if(s.queue.length>=LIMITS.queue){fault(s,Error('queue-limit'));return false;}let time=null;try{time=s.now();}catch(_){}s.queue.push(Object.assign({kind,boottimeMs:time},fields||{}));return true;}
 
-function fault(s,error){s.allowedUntil=0;s.stopping=true;s.reason=s.reason||String(error).slice(0,180);}
+function fault(s,error){s.allowedUntil=0;s.stopping=true;s.reason=s.reason||String(error).slice(0,180);if(error&&error.stack)event(s,'fault-detail',{stack:String(error.stack).slice(0,2000)});}
 
 function flush(s){for(const e of s.queue.splice(0)){try{console.log('[pgrazor-quick-close] '+JSON.stringify(e));}catch(_){}if(typeof s.onEvent==='function')try{s.onEvent(e);}catch(_){}}}
 

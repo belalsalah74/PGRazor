@@ -47,6 +47,11 @@ public class RuntimeAbiTest {
         rejects("does not match",()->RuntimeAbi.requireMatch("x86_64","arm64-v8a"));
         rejects("Unsupported Gadget ABI",()->RuntimeAbi.requireMatch("armeabi-v7a","arm64-v8a"));
         rejects("Unsupported native process ABI",()->RuntimeAbi.requireMatch("arm64-v8a","unknown"));
+        String[] bundled={"arm64-v8a","x86_64"};
+        check(RuntimeAbi.select("","arm64-v8a",bundled).equals("arm64-v8a"),"Unified APK selects phone runtime");
+        check(RuntimeAbi.select("","x86_64",bundled).equals("x86_64"),"Same APK selects emulator runtime");
+        rejects("No bundled runtime",()->RuntimeAbi.select("","x86_64",new String[]{"arm64-v8a"}));
+        rejects("does not match",()->RuntimeAbi.select("arm64-v8a","x86_64",bundled));
         System.out.println("PASS: native ARM64/x64 ELF, short reads, malformed/unsupported/read-error handling, ABI matches and mismatches");
     }
 }

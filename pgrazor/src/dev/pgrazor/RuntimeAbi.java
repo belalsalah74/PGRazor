@@ -49,6 +49,12 @@ public final class RuntimeAbi {
         return requested;
     }
 
+    public static String select(String requested, String nativeAbi, String[] bundled) throws IOException {
+        String selected = requireMatch(requested, nativeAbi);
+        for (String candidate : bundled) if (selected.equals(candidate)) return selected;
+        throw new IOException("No bundled runtime for native process ABI: " + selected);
+    }
+
     private static boolean supported(String abi) {
         return "arm64-v8a".equals(abi) || "x86_64".equals(abi);
     }

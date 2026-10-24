@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## v0.1.4
+
+[Full release notes](docs/releases/v0.1.4.md)
+
+- Ship one APK for ARM64 Android phones and MuMu, selecting the appropriate runtimes automatically.
+- Connect MuMu's Android controls to translated ARM gameplay hooks for Quick Catch, VGP, berries, transfers, IV display, and other native features.
+- Fix early permission initialization so spoofing can start with app location permission denied.
+- Adapt gift dialog observation and executable-code validation for MuMu while retaining the existing phone runtime path.
 
 ## v0.1.3
 

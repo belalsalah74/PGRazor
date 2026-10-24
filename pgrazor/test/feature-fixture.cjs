@@ -2,8 +2,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-module.exports = (name, dependencies) => {
-    const context = {};
+module.exports = (name, dependencies, globals = {}) => {
+    const context = {...globals};
     const root = path.join(__dirname, '..');
     const sources = JSON.parse(fs.readFileSync(path.join(root, 'runtime/bundles.json'), 'utf8'))['quick-close.js'];
     vm.createContext(context);

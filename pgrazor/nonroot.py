@@ -130,11 +130,11 @@ def rewrite_apk(source,destination,*,base=False,dex=None,assets=None,preview=Fal
                 else: output.write(path_or_bytes,name,compress_type=zipfile.ZIP_DEFLATED)
 
 def validate_survey_options(enabled, panel_only, abi, flag='--il2cpp-survey'):
-    if enabled and (panel_only or abi != 'arm64-v8a'):
+    if enabled and (panel_only or abi not in ('arm64-v8a', 'auto')):
         raise ValueError(flag+' requires embedded Gadget on the native arm64-v8a runtime; panel-only and non-ARM64 builds are unsupported')
 
 
-def package(source, *,panel_only=False,download=False,preview=False,probe_abi=None,game_runtime_abi='arm64-v8a',il2cpp_survey=False,camera_probe=False,camera_sample=False,camera_steering=False,scene_probe=False,scene_observe=False,interaction_probe=False,quick_summary=False,quick_ball=False,quick_close=False,google_browser_login=False):
+def package(source, *,panel_only=False,download=False,preview=False,probe_abi=None,game_runtime_abi='auto',il2cpp_survey=False,camera_probe=False,camera_sample=False,camera_steering=False,scene_probe=False,scene_observe=False,interaction_probe=False,quick_summary=False,quick_ball=False,quick_close=False,google_browser_login=False):
     if quick_close and quick_summary: raise ValueError('--quick-close and --quick-summary are mutually exclusive')
     quick_summary=bool(quick_summary or quick_close)
     summary_script='quick-close.js' if quick_close else 'quick-summary.js'
@@ -167,10 +167,10 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
     if not preview and package_name!='com.nianticlabs.pokemongo': raise ValueError('Expected Pokemon GO package; refusing a different input')
     if not preview and native_abis!={'arm64-v8a'}:
         raise ValueError('This game packager currently requires an ARM64-only APK/set. Found: '+repr(native_abis))
-    if game_runtime_abi not in runtime_assets.ARCHES: raise ValueError('Unsupported game runtime ABI')
-    abis=[probe_abi] if preview else [game_runtime_abi]
+    if game_runtime_abi != 'auto' and game_runtime_abi not in runtime_assets.ARCHES: raise ValueError('Unsupported game runtime ABI')
+    abis=[probe_abi] if preview else (sorted(runtime_assets.ARCHES) if game_runtime_abi == 'auto' else [game_runtime_abi])
     if preview and probe_abi not in runtime_assets.ARCHES: raise ValueError('Probe requires a supported 64-bit ABI')
-    mode={'gadget':not panel_only,'version':runtime_assets.VERSION,'preferredAbi':abis[0]}
+    mode={'gadget':not panel_only,'version':runtime_assets.VERSION,'preferredAbi':'' if not preview and game_runtime_abi == 'auto' else abis[0], 'runtimeAbis':abis}
     if il2cpp_survey: mode['il2cppSurvey']=True
     if camera_probe: mode['cameraProbe']=True
     if camera_sample: mode['cameraSample']=True
@@ -220,7 +220,7 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
         for notice in ['NOTICE.txt','COPYING.frida-tools','bridge-provenance.json']:
             assets['assets/pgrazor/bridge-notices/'+notice]=ROOT/'vendor'/notice
     report={'input':str(source.resolve()),'input_sha256':runtime_assets.sha256(source),'package':package_name,
-        'mode':'panel-only' if panel_only else 'embedded-location','original_abis':sorted(native_abis),'runtime_abi':abis[0],
+        'mode':'panel-only' if panel_only else 'embedded-location','original_abis':sorted(native_abis),'runtime_abi':game_runtime_abi if not preview else probe_abi,'runtime_abis':abis,
         'game_acceptance':'UNTESTED','runtime':runtimes,'outputs':[], 'input_certificate_sha256':certificates[0],
         'installation':'Not installed. Signed with local development key; cannot update a differently signed installation.'}
     if not panel_only:
@@ -326,7 +326,7 @@ def main(argv=None):
     selection.add_argument('--build-probe',action='store_true',help='Build a standalone phone test APK without connecting to or installing on a device')
     selection.add_argument('--apk',type=Path,help='APK/APKM/APKS to package; game is never installed automatically')
     parser.add_argument('--abi',choices=sorted(runtime_assets.ARCHES),help='Required with --build-probe: architecture of the intended phone')
-    parser.add_argument('--runtime-abi',choices=sorted(runtime_assets.ARCHES),help='With --apk, native Android runtime ABI; defaults to arm64-v8a. Use x86_64 for experimental MuMu Java hooks, not ARM Unity hooks.')
+    parser.add_argument('--runtime-abi',choices=['auto',*sorted(runtime_assets.ARCHES)],help='With --apk, defaults to auto: bundle ARM64 and x86-64 runtimes and select the native process ABI at startup. Native gameplay hooks require ARM64.')
     parser.add_argument('--serial',help='With --probe, target this adb device serial; defaults to the only connected device')
     parser.add_argument('--panel-only',action='store_true',help='Test embedded menu and logs without Gadget or location overrides')
     diagnostic=parser.add_mutually_exclusive_group()
@@ -377,12 +377,12 @@ def main(argv=None):
             raise RuntimeError('Cannot select adb device '+serial+'. Check adb devices and authorize USB debugging on the intended device. '+str(error)) from error
         abi=android.shell('getprop','ro.product.cpu.abi').strip()
         if abi not in runtime_assets.ARCHES: raise RuntimeError('Unsupported probe ABI: '+abi)
-    validate_survey_options(args.il2cpp_survey,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'arm64-v8a'))
-    validate_survey_options(args.camera_probe or args.camera_sample or args.camera_steering,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'arm64-v8a'),'--camera-probe')
-    validate_survey_options(args.scene_probe or args.scene_observe,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'arm64-v8a'),'--scene-probe')
-    validate_survey_options(args.interaction_probe,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'arm64-v8a'),'--interaction-probe')
-    validate_survey_options(args.quick_summary,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'arm64-v8a'),'--quick-close' if args.quick_close else '--quick-summary')
-    validate_survey_options(args.quick_ball,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'arm64-v8a'),'--quick-ball')
+    validate_survey_options(args.il2cpp_survey,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'))
+    validate_survey_options(args.camera_probe or args.camera_sample or args.camera_steering,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--camera-probe')
+    validate_survey_options(args.scene_probe or args.scene_observe,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--scene-probe')
+    validate_survey_options(args.interaction_probe,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--interaction-probe')
+    validate_survey_options(args.quick_summary,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--quick-close' if args.quick_close else '--quick-summary')
+    validate_survey_options(args.quick_ball,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--quick-ball')
     if not args.skip_build: command(sys.executable,ROOT/'build.py')
     preview=args.probe or args.build_probe
     source=ROOT/'build/pgrazor-preview.apk' if preview else args.apk.resolve()

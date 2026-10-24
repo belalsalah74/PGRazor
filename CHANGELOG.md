@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.1.3
+
+[Full release notes](docs/releases/v0.1.3.md)
+
 - Ask before a game-map tap stops a planned route or Autowalk; cancelling keeps the route running.
 
 - Avoid replacing the native location-update method; normalize provider events through listener adapters to address Android runtime dispatch crashes.

@@ -1,91 +1,20 @@
-# 👋🧩 Morphe Patches template
+# Pogo Patches (Morphe)
 
-Template repository for Morphe Patches.
+Morphe patches for Pokémon GO **0.433.1** (arm64). One patch: **Enhanced throw and quick catch**.
 
-## ❓ About
+- Bundles Frida gadget 17.24.2 (downloaded and SHA-256-verified at build time) and `agent/throw-catch-agent.js`.
+- A manifest-registered `BootstrapProvider` copies them to the code cache and loads the gadget before the game starts.
+- The agent hooks native IL2CPP methods at fixed 0.433.1 offsets, each checked byte-for-byte; a mismatch disables that feature.
 
-Patches for apps I like.
+## Setting this up from the template
 
-<!-- TODO: Update this about section with a brief introduction/summary about this repo and what it offers. -->
+1. On GitHub: **Use this template** on `MorpheApp/morphe-patches-template`, enable *Include all branches*, name it e.g. `pogo-morphe-patches`.
+2. Copy this folder over the new repo (it only adds/replaces these files; keep the template's `.github`, `gradle`, `gradlew`, `.releaserc`, `package.json`, `patches/src/main/kotlin/util/PatchListGenerator.kt`, `extensions/extension/build.gradle.kts`).
+3. Delete the template's example patch/extension sources.
+4. Make sure `extendWith("extensions/extension.mpe")` in `ThrowCatchPatch.kt` matches the extension name the template's own example patch uses.
+5. Work on `dev`, build with `./gradlew buildAndroid` (needs `gpr.user`/`gpr.key`, and `xz` on PATH), apply `patches/build/libs/patches-*.mpp` with Morphe Desktop.
+6. Release only through the template's `release.yml` (`feat:` / `fix:` commits).
 
-### How to use these patches
+## Verifying on device
 
-Click here to add these patches to Morphe: https://morphe.software/add-source?github=xyz-user/xyz-patches
-
-## 🩹 Patches list
-
-<!-- PATCHES_START EXPANDED -->
-
-<!-- Do not modify this section by hand. The patch list is generated when release.yml creates a new release.
-     
-     If you wish for the patches list to be collapsed, then remove the word 'EXPANDED' from the comment tag above.
-
-     If you wish to manually keep this list updated then remove the PATCHES_START and PATCHES_END 
-     comment blocks entirely. -->
-
-#### A list of your patches will automatically be shown here after your first patches release is created.
-
-&nbsp;
-
-## 🚀 Getting development started
-
-To start using this template, follow these steps:
-
-1. [Setup](https://github.com/MorpheApp/morphe-documentation/blob/main/docs/morphe-development/README.md) your development environment including adding a GitHub PAT as described [here](https://github.com/MorpheApp/morphe-patcher/blob/main/docs/2_1_setup.md#-prepare-the-environment).
-2. [Create a new repository using this template](https://github.com/new?template_name=morphe-patches-template&template_owner=MorpheApp). Select create a new repository, and **enable 'Include all branches'** 
-3. Enable "Allow GitHub Actions to create and approve pull requests" in your repo Settings > Actions > General > Workflow permissions
-4. Update the [build.gradle.kts](patches/build.gradle.kts) file (Specifically, the 
-   [group of the project](patches/build.gradle.kts#L1), and the [About](patches/build.gradle.kts#L6-L11))
-5. Update the [README.md](README.md) file to be specific of your repo, and update the links in the [issue templates](.github/ISSUE_TEMPLATE).
-6. Choose a name for your patches project. Keep in mind you must use a name that does not 
-   imply authorship by the Morphe open source project. If unsure, then simply name these
-   patches after yourself ("UserXYZ Morphe patches"). See the [NOTICE](NOTICE) for details. 
-7. (Optional): Add `patches-bundle.png` to the project if you want a custom icon to show in
-   Morphe Manager instead of your GitHub profile avatar.
-
-🎉 You are now ready to start creating patches!
-
-## 🧑‍💻 Dev usage
-
-To develop and release your Patches using this template:
-
-- **Make all changes to the `dev` branch.**
-- For local development work build your patches using the gradle task `./gradlew buildAndroid` to generate the mpp file found in `patches/build/libs/patches-*.mpp`. Apply your patches locally using Morphe Desktop tool like any other patch bundle.
-- Always use [Semantic commit](https://kapeli.com/cheat_sheets/Semantic_Commits.docset/Contents/Resources/Documents/index) messages for commits. To keep it simple use only 3 commit message types: 
-  - `feat: Added a new feature`
-  - `fix: Some problem now fixed`
-  - `chore: Random change you do not want in the user facing changelog`
-- Commits of `fix:` and `feat:` will automatically generate new pre-releases and `chore:` will not create a new release.
-- Users can apply your dev branch releases by enabling `pre-release` in Morphe Manager patch sources.
-- When your dev branch is ready, and you want a stable release, merge dev branch to main (do not squash, and only merge).
-- **Always use semantic release (release.yml)**. Do not manually upload or create releases by hand
-  because many files must be updated and release.yml handles everything.
-
-## 🤓 Tips
-- See the [patcher documentation](https://github.com/MorpheApp/morphe-patcher/blob/main/docs/1_patcher_intro.md) for more examples of creating patches and fingerprints.
-- Do not use AI to create new release scripts. The `release.yml` here already handles everything.
-  If you need something custom with your releases then modify the existing `release.yml`
-  and `.releaserc` instead of writing everything new from scratch.
-- Do not manually edit or manually commit any generated files such as: `patches-list.json`,
-  `patches-bundle.json`, `CHANGELOG.md`.  These files will be automatically updated by `release.yml`.
-- Do not force push any semantic release commits as that will break all future releases.
-  If you need to fix a broken release, it's always easiest to create a new release instead of 
-  fixing an existing release.
-
-
-<!-- The patches end tag is intentionally placed here so the first release will clean up 
-     this readme of all developer instructions above. -->
-<!-- PATCHES_END -->
-
-### 🛠️ Building locally
-
-- Run `./gradlew buildAndroid`
-- The built patches .mpp file is found in `patches/build/libs/patches-*.mpp`
-- Patch the mpp file using [Morphe-Desktop](https://github.com/MorpheApp/morphe-desktop)
-  like any other patch bundle.
-
-See the [Morphe documentation](https://github.com/MorpheApp/morphe-documentation) for more information.
-
-## 📜 License
-
-UserXYZ Patches are licensed under the [GNU General Public License v3.0](LICENSE)
+`logcat -s ThrowCatch PogoBootstrap` — expect `gadget loaded`, then `boot`, `il2cpp-ready`, `ready`. See `agent/` for details; `node --test agent/test/throw-catch-agent.test.cjs` runs the agent tests.

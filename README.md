@@ -9,7 +9,7 @@ Morphe patches for Pokémon GO **0.433.1** (arm64). One patch: **Enhanced throw 
 ## Setting this up from the template
 
 1. On GitHub: **Use this template** on `MorpheApp/morphe-patches-template`, enable *Include all branches*, name it e.g. `pogo-morphe-patches`.
-2. Copy this folder over the new repo (it only adds/replaces these files; keep the template's `.github`, `gradle`, `gradlew`, `.releaserc`, `package.json`, `patches/src/main/kotlin/util/PatchListGenerator.kt`, `extensions/extension/build.gradle.kts`).
+2. Unzip this folder's contents over the repo root, then run `bash apply.sh`. It edits the template's own `settings.gradle.kts` and `patches/build.gradle.kts` in place (project name, about block, one `apply(from = "payload.gradle.kts")` line) and never replaces them, so the template's plugin and toolchain versions stay intact. Afterwards set `about { source = ... }` to your own repo.
 3. Delete the template's example patch/extension sources.
 4. Make sure `extendWith("extensions/extension.mpe")` in `ThrowCatchPatch.kt` matches the extension name the template's own example patch uses.
 5. Work on `dev`, build with `./gradlew buildAndroid` (needs `gpr.user`/`gpr.key`, and `xz` on PATH), apply `patches/build/libs/patches-*.mpp` with Morphe Desktop.

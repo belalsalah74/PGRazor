@@ -8,7 +8,7 @@ patches {
     about {
         name = "Pogo Patches"
         description = "Pokémon GO patches for Morphe"
-        source = "git@github.com:belalsalah74/pogo-morphe-patches.git"
+        source = "git@github.com:belalsalah74/razor.git"
         author = "belalsalah74"
         contact = "na"
         website = "na"
@@ -24,6 +24,8 @@ dependencies {
     compileOnly(libs.gson)
     patchListGeneratorClasspath(libs.gson)
 }
+
+
 
 // ---------------------------------------------------------------------------
 // Bundled runtime payload: Frida gadget (arm64) + the throw/catch agent script.

@@ -109,7 +109,7 @@ public class AutoWalkTest {
 
     static void testPlannerCountAndValidation() {
         double[][] pts = {{0, 10 * DEG}, {0, 30 * DEG}, {0, 20 * DEG}}; // A(10m), B(30m), C(20m) east of origin
-        check(AutoWalkPlanner.MAX_STOPS == MotionEngine.MAX_ROUTE_STOPS, "Planner shares the engine route ceiling");
+        check(AutoWalkPlanner.MAX_STOPS == 50 && AutoWalkPlanner.MAX_STOPS <= MotionEngine.MAX_ROUTE_STOPS, "Nearby planner keeps its own bounded ceiling");
         rejects(() -> AutoWalkPlanner.plan(0, 0, pts, 0), "Rejects a zero stop count");
         rejects(() -> AutoWalkPlanner.plan(0, 0, pts, AutoWalkPlanner.MAX_STOPS + 1), "Rejects a count above the ceiling");
         rejects(() -> AutoWalkPlanner.plan(Double.NaN, 0, pts, 3), "Rejects a non-finite avatar position");

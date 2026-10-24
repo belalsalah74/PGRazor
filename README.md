@@ -27,7 +27,7 @@ The Android package identity stays compatible with the game. An official-store i
 
 | Area | Controls |
 | --- | --- |
-| Map | Optional location spoofing, including with app location permission denied; camera-relative joystick, saved locations, routes, Autowalk, tap-to-walk/teleport, nearby stop/gym/raid layers |
+| Map | Optional location spoofing, including with app location permission denied; camera-relative joystick, saved locations, GPX import/export and saved routes, Autowalk, tap-to-walk/teleport, nearby stop/gym/raid layers |
 | Catching | Quick Catch; Nice/Great/Excellent throws; always curveball; optional AR+ flag; optional level and color-graded IV display; berry selector |
 | Inventory | Optional IV/level on Pokémon details; transfer newly caught Pokémon below 90% IV; configurable item limits |
 | Keep rules | Legendary/mythical/Ultra Beasts, shiny, event/costume, background, **XXS**, **XXL**, searchable custom species keep list, and a persistent Keep All overlay; favorites and eggs always kept |
@@ -55,6 +55,8 @@ The Android package identity stays compatible with the game. An official-store i
 **VGP:** the settings switch shows or hides its overlay. Tap the connected/disconnected device icon to start or stop VGP; ON/OFF labels show its state. VGP starts off and switches off when the app leaves the foreground. Optional **Stop on cooldown (estimated)** also switches it off until you manually restart it. Catch and item automation follow their existing settings and protection rules.
 
 **LivePokeMap feeds:** Requires an active subscription to [LivePokeMap](https://play.livepokemap.com/), purchased separately from their service. Open **Feeds** and sign in with your own account on the phone. The feed lists remote Pokémon, stops, gyms, raids, and stations around your current location. Configure your friend code on the LivePokeMap website, then open **My Shinies** in Feed. My Shinies has its own 30-second refresh and is not limited by the Nearby radius. **Filters** provides species selection, IV/level ranges, size, always-show exceptions, PvP ranks, and shiny/background controls; My Shinies exposes the subset supported by its endpoint. Filter presets are saved locally. Rows show base-species sprites, gym team emblems, and raid bosses or eggs. Forms and shiny variants share the base-species image. Filter by category, radius, and minimum Pokémon IV; select a result for Map, Walk, or Teleport. The session token is stored encrypted with Android Keystore; the password is never saved. Logout removes the token. Refresh stops when the feed closes or the app leaves the foreground. Remote sightings can expire and are separate from locations loaded by the game. This uses LivePokeMap's observed web interface, which may change; access depends on your account and service availability.
+
+**GPX routes:** Import a GPX file or choose a saved route in Autowalk. In the world map route builder, use GPX to import, save, or export routes. GPX routes preserve their point order and support up to 5,000 points, with optional looping. Importing does not start movement; press Start when ready. Saved routes stay on the device across app restarts and updates; export GPX files to keep a copy outside the app.
 
 The map and cooldown history open full screen using the selected PGRazor theme. Select a map pin, then choose Walk here or Teleport. The manual route planner also offers Loop route (off by default). Map tiles retain their original colors.
 

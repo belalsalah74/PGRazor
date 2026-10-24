@@ -37,3 +37,4 @@ Thumbs.db
 /website/test-results/
 /website/playwright-report/
 *.txt
+*.gpx

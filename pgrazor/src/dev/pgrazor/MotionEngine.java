@@ -2,7 +2,8 @@ package dev.pgrazor;
 
 /** Coordinate integration independent of Android and of any game. */
 public final class MotionEngine {
-    public static final int MAX_ROUTE_STOPS = 50;
+    /** Imported GPX routes may contain many more points than nearby POI plans. */
+    public static final int MAX_ROUTE_STOPS = 5000;
     private static final double EARTH_RADIUS_METERS = 6371008.8;
     private static final double SAME_POINT_RADIANS = 1e-14;
     public volatile double latitude = 37.7749, longitude = -122.4194;
@@ -12,9 +13,18 @@ public final class MotionEngine {
     public volatile double targetLatitude, targetLongitude;
     private volatile double east, north;
     private double[][] route = new double[0][];
+    private double[] remainingLegMeters = new double[0];
     private int visitedStops;
     /** When set, the chosen route repeats from its first stop after the last; cleared by any cancellation. */
     private boolean looping;
+    private boolean plannedRoute;
+    private long routeGeneration;
+    /** Nonzero only for an active planned route, including a one-stop GPX/Autowalk. */
+    public synchronized long activeRouteToken() {return walking&&plannedRoute?routeGeneration:0;}
+    public synchronized boolean stopRoute(long token) {
+        if(token==0||token!=activeRouteToken())return false;
+        stop();return true;
+    }
 
     /** One coherent progress snapshot, without exposing the mutable route. */
     public static final class RouteProgress {
@@ -26,11 +36,10 @@ public final class MotionEngine {
         }
     }
     public synchronized RouteProgress routeProgress() {
-        double remaining=0, lat=latitude, lon=longitude;
-        for (int i=visitedStops; i<route.length; i++) {
-            remaining+=angle(unit(lat,lon),unit(route[i][0],route[i][1]))*EARTH_RADIUS_METERS;
-            lat=route[i][0]; lon=route[i][1];
-        }
+        // Only the current leg changes each tick; GPX routes can have thousands of points.
+        double remaining=0;
+        if(visitedStops<route.length)remaining=remainingLegMeters[visitedStops]
+            +angle(unit(latitude,longitude),unit(route[visitedStops][0],route[visitedStops][1]))*EARTH_RADIUS_METERS;
         return new RouteProgress(route.length,visitedStops,walking,remaining);
     }
     private static void validatePosition(double lat, double lon) {
@@ -49,14 +58,14 @@ public final class MotionEngine {
     }
     /** Explicitly start a shortest-path walk; callers must check adapter readiness. */
     public synchronized void walkTo(double lat, double lon) {
-        walkRoute(new double[][]{{lat,lon}});
+        walkRoute(new double[][]{{lat,lon}});plannedRoute=false;
     }
     /** Validate/copy the entire route before replacing any current movement; a one-shot route. */
     public synchronized void walkRoute(double[][] waypoints) { walkRoute(waypoints, false); }
     /** As {@link #walkRoute(double[][])}, but a looping route repeats from its first stop after the last. */
     public synchronized void walkRoute(double[][] waypoints, boolean loop) {
         if (waypoints==null || waypoints.length==0 || waypoints.length>MAX_ROUTE_STOPS)
-            throw new IllegalArgumentException("Choose between 1 and 50 route stops.");
+            throw new IllegalArgumentException("Choose between 1 and " + MAX_ROUTE_STOPS + " route stops.");
         double[][] copy=new double[waypoints.length][2];
         for (int i=0; i<waypoints.length; i++) {
             if (waypoints[i]==null || waypoints[i].length!=2)
@@ -65,7 +74,10 @@ public final class MotionEngine {
             validatePosition(lat,lon); copy[i][0]=lat; copy[i][1]=lon;
         }
         // Mutation only after full validation, so an invalid route leaves any active walk untouched.
-        route=copy; visitedStops=0; looping=loop;
+        double[] legs=new double[copy.length];
+        for(int i=copy.length-2;i>=0;i--)legs[i]=legs[i+1]
+            +angle(unit(copy[i][0],copy[i][1]),unit(copy[i+1][0],copy[i+1][1]))*EARTH_RADIUS_METERS;
+        route=copy; remainingLegMeters=legs; visitedStops=0; looping=loop;plannedRoute=true;routeGeneration++;
         targetLatitude=route[0][0]; targetLongitude=route[0][1];
         east = north = 0;
         enabled = true;
@@ -86,7 +98,7 @@ public final class MotionEngine {
         if (Math.hypot(east, north) > 0.05)
             bearing = (Math.toDegrees(Math.atan2(east, north)) + 360) % 360;
     }
-    private void clearRoute() { walking=false; route=new double[0][]; visitedStops=0; looping=false; }
+    private void clearRoute() { plannedRoute=false;routeGeneration++;walking=false; route=new double[0][]; remainingLegMeters=new double[0]; visitedStops=0; looping=false; }
     public synchronized void stop() { clearRoute(); east = north = 0; }
     public synchronized void pause() { enabled = false; stop(); }
     public synchronized double metersPerSecond() {
@@ -103,7 +115,7 @@ public final class MotionEngine {
             // (coincident) arrivals are capped to one lap. A hard iteration limit also
             // bounds tiny nonzero loops; unused travel is dropped rather than freezing a frame.
             int coincidentArrivals=0,iterations=0;
-            while (walking && iterations++<MAX_ROUTE_STOPS*4 && (distance>0 || angle(unit(latitude,longitude),unit(targetLatitude,targetLongitude))<=SAME_POINT_RADIANS)) {
+            while (walking && iterations++<200 && (distance>0 || angle(unit(latitude,longitude),unit(targetLatitude,targetLongitude))<=SAME_POINT_RADIANS)) {
                 double before=distance;
                 distance=stepWalk(distance);
                 if (before-distance>SAME_POINT_RADIANS) coincidentArrivals=0;

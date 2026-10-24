@@ -70,6 +70,7 @@ public final class Pad {
 
     private long lastTick = SystemClock.elapsedRealtime(), lastLog;
     private boolean closed, lastEnabled;
+    private AlertDialog stopRouteDialog;
     public Pad(Activity host) {
         activity = host;
         parent = (FrameLayout)host.getWindow().getDecorView();
@@ -273,6 +274,25 @@ public final class Pad {
             } catch (IllegalArgumentException error) { speed.setError("Enter valid coordinates and speed (0.5–30)."); }
         })); dialog.show();styleTree(form);
     }
+    /** A ground tap must never silently replace a planned route. */
+    void confirmStopRoute() {
+        if(closed||activity.isFinishing()||activity.isDestroyed()||stopRouteDialog!=null)return;
+        final long token=Control.engine.activeRouteToken();if(token==0)return;
+        AlertDialog dialog=new AlertDialog.Builder(dialogContext())
+            .setTitle("Stop route?")
+            .setMessage("A route or Autowalk is running. Do you want to stop it?")
+            .setNegativeButton("Keep walking",null)
+            .setPositiveButton("Stop route",(d,w)->{
+                if(!closed&&Control.engine.stopRoute(token)){
+                    Control.saveState();Control.event("route-stopped","Confirmed after map tap");refresh();
+                }
+            }).create();
+        stopRouteDialog=dialog;
+        DialogLifecycle.bind(activity,dialog,()->{if(stopRouteDialog==dialog)stopRouteDialog=null;});
+        dialog.setOnShowListener(d->MapTheme.styleButtons(dialog));
+        dialog.show();
+    }
+
     /** Shared World map handler for both the settings list and the quick menu Map row. */
     private void openWorldMap() {
         if(quickMenu!=null)quickMenu.hide();
@@ -322,7 +342,7 @@ public final class Pad {
     }
     public void close() {
         if (closed) return;
-        closed = true; stick.release(true); Control.suspendForBackground(); handler.removeCallbacks(tick);
+        closed = true;if(stopRouteDialog!=null)stopRouteDialog.dismiss(); stick.release(true); Control.suspendForBackground(); handler.removeCallbacks(tick);
         if(quickMenu!=null){quickMenu.destroy();quickMenu=null;}
         if(cooldownDrag!=null){cooldownDrag.detach();cooldownDrag=null;}if(vgpDrag!=null){vgpDrag.detach();vgpDrag=null;}if(transferDrag!=null){transferDrag.detach();transferDrag=null;}
         settings.close();

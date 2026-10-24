@@ -8,10 +8,18 @@ const Manager={nativeLocationUpdate:method((self,p,fix,status)=>{if(fix)assert.o
 const Service={invokeOnStart:method(),invokeOnStop:method(),invokeOnPause:method(),invokeOnResume:method(),getServiceHandler:()=>handler};
 Manager.class={isInstance:o=>!!o.nativeClassPointer};
 const running=3,failed=4,denied=5;
-function manager(){const m={callbackLock:{value:{}},nativeClassPointer:{value:1},getContext:()=>({checkSelfPermission:()=>permission}),$dispose:()=>m.released=true,$isSameObject:o=>o===m};return m;}
+function manager(){
+ const m={callbackLock:{value:{}},nativeClassPointer:{value:1},getContext:()=>({checkSelfPermission:()=>permission}),$dispose:()=>m.released=true,$isSameObject:o=>o===m};
+ function native(fix,status){const was=locked;locked=true;try{Manager.nativeLocationUpdate.m.call(m,'gps',fix,status);}finally{locked=was;}}
+ const original={onProviderStatus:s=>native(null,s),onProviderLocation:f=>native(f,failed),onProviderSatellites:()=>m.satellites=true,$dispose(){}};
+ const provider={providerListener:{value:original},getClass:()=>({getName:()=> 'TestProvider'}),getProviderName:()=> 'gps',setListener(l){this.providerListener.value=l;},$isSameObject:o=>o===provider,$dispose(){}};
+ m.provider=provider;m.original=original;m.providers={value:{values:()=>({iterator:()=>{let read=false;return {hasNext:()=>!read,next:()=>{read=true;return provider;}};}})}};
+ return m;
+}
 const unityPermission=method(()=>false),pluginPermission=method(()=>false);
 const permissionStatus=method(()=>"denied");
 const classes={
+ 'TestProvider':{},'com.nianticlabs.nia.location.NianticLocationProvider$ProviderListener':{},
  'com.nianticlabs.platform.niaadvsynccore.permission.Permissions':{LOCATION:{value:{getValue:()=>1}},PRECISE_LOCATION:{value:{getValue:()=>16}}},
  'com.nianticlabs.platform.niaadvsynccore.permission.PermissionStatus':{GRANTED_IN_USE:{value:'in-use'},GRANTED_ALWAYS:{value:'always'}},
  'com.nianticlabs.platform.niaadvsyncpermissions.internal.InternalPermissionManager':{permissionStatus},
@@ -23,9 +31,10 @@ const classes={
  'android.location.Location':{$new:p=>{const f={provider:p,$dispose:()=>{}};for(const k of ['Latitude','Longitude','Speed','Bearing','Altitude','Accuracy','Time','ElapsedRealtimeNanos'])f['set'+k]=v=>f[k]=v;return f;}},
  'java.lang.System':{currentTimeMillis:()=>now},'android.os.SystemClock':{elapsedRealtimeNanos:()=>now*1000000},'java.lang.Runnable':{}
 };
-const ctx={hooks:[],disposed:false,control:{desiredEnabled:()=>desired,active:()=>active,latitude:()=>12,longitude:()=>34,speed:()=>2,bearing:()=>90,event:()=>{}},bootLog:()=>{},Java:{use:n=>{assert.ok(classes[n],n);return classes[n]},retain:o=>o,cast:o=>o,synchronized:(l,f)=>{locked=true;try{f()}finally{locked=false}},registerClass:spec=>({$new:()=>({run:spec.methods.run})})}};
+const ctx={hooks:[],disposed:false,control:{desiredEnabled:()=>desired,active:()=>active,latitude:()=>12,longitude:()=>34,speed:()=>2,bearing:()=>90,event:()=>{}},bootLog:()=>{},Java:{use:n=>{assert.ok(classes[n],n);return classes[n]},retain:o=>o,cast:o=>o,synchronized:(l,f)=>{locked=true;try{f()}finally{locked=false}},registerClass:spec=>({$new:()=>({key:{value:0},$dispose(){},...spec.methods})})}};
 vm.createContext(ctx);vm.runInContext(code+'\nconst adapter=PGRazorLocation.create({Java,control,isDisposed:()=>disposed,bootLog});adapter.installPermissions();this.install=adapter.installDelivery;this.stop=adapter.stop;',ctx);ctx.install();
-const invoke=(n,m,...args)=>(n==='nativeLocationUpdate'?Manager[n]:Service['invoke'+n.slice(0,1).toUpperCase()+n.slice(1)]).m.implementation.call(m,...args);
+const invoke=(n,m,...args)=>{if(n==='nativeLocationUpdate'){const [,fix,status]=args;return fix===null?m.provider.providerListener.value.onProviderStatus(status):m.provider.providerListener.value.onProviderLocation(fix);}return Service['invoke'+n.slice(0,1).toUpperCase()+n.slice(1)].m.implementation.call(m,...args);};
+assert.equal(Manager.nativeLocationUpdate.m.implementation,undefined,'Native method must never be replaced');
 function tick(){assert.ok(queue.length);queue.shift().run();}
 assert.equal(permissionStatus.m.implementation(1),'in-use');assert.equal(permissionStatus.m.implementation(16),'always');assert.equal(permissionStatus.m.implementation(32),'denied');
 desired=false;assert.equal(permissionStatus.m.implementation(1),'denied');desired=true;
@@ -52,8 +61,10 @@ active=false;invoke('nativeLocationUpdate',a,'gps',null,denied);assert.equal(del
 invoke('onPause',a);assert.equal(queue.length,0);invoke('onResume',a);tick();assert.equal(delivered.length,count+1);
 a.nativeClassPointer.value=0;count=delivered.length;tick();assert.equal(delivered.length,count);
 const b=manager();invoke('onStart',b);assert.ok(a.released);assert.equal(queue.length,1);tick();assert.equal(delivered.at(-1).self,b);
-invoke('onStop',a);assert.equal(queue.length,1);invoke('onStop',b);assert.equal(queue.length,0);assert.ok(b.released);
-invoke('onStart',manager());ctx.stop();assert.equal(queue.length,0);for(const v of [...Object.values(Manager),...Object.values(Service)])if(v.m)assert.equal(v.m.implementation,null);
+assert.equal(a.provider.providerListener.value,a.original,'Old provider listener restored on replacement');
+invoke('onStop',a);assert.equal(queue.length,1);invoke('onStop',b);assert.equal(queue.length,0);assert.ok(b.released);assert.equal(b.provider.providerListener.value,b.original);
+b.provider.providerListener.value.onProviderSatellites(1,[]);assert.ok(b.satellites);
+invoke('onStart',manager());ctx.stop();assert.equal(queue.length,0);for(const v of [...Object.values(Manager),...Object.values(Service)])if(v.m&&v!==Manager.nativeLocationUpdate)assert.equal(v.m.implementation,null);
 assert.equal(unityPermission.m.implementation,null);assert.equal(pluginPermission.m.implementation,null);assert.equal(permissionStatus.m.implementation,null);
 ctx.stop(); // Disposal is idempotent.
 console.log('PASS location delivery: GPS-independent start, fresh fixes, OFF gate and denied OS permission, pause/resume, zero pointer, manager replacement, stop and rollback');

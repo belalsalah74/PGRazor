@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Ask before a game-map tap stops a planned route or Autowalk; cancelling keeps the route running.
+
+- Avoid replacing the native location-update method; normalize provider events through listener adapters to address Android runtime dispatch crashes.
+
+- Add My location centering and a direct Clear route action to the world map.
+
+- Import GPX waypoints, routes, and tracks; save and export routes from the world map and choose saved GPX routes in Autowalk.
+
+- Recover Dynamax attack controls from the active battle when their setup callbacks were missed, allowing automatic quick and charged attacks to start.
+- Vary the circle radius within the selected Nice, Great, or Excellent throw band, preserving one sampled value across a throw's submit/hit callbacks.
 - Separate native feature state machines, GPS delivery, VGP/toast policy, and map tile/POI layers into modules with explicit ownership.
 - Split the settings menu into named section builders and refresh binders, share theme styling, and stop item-dialog polling when its panel closes.
 - Save settings through an ordered background writer, with flush checks for export/import and protection against stale reloads after a failed save.

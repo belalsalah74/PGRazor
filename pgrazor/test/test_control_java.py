@@ -107,7 +107,7 @@ public class NotificationManager {
  public void notify(int id,Notification notification){}
 }''',
     'dev/pgrazor/Pad.java': '''package dev.pgrazor;
-public class Pad {public final android.app.Activity activity; public Pad(android.app.Activity a){activity=a;} public void close(){}}''',
+public class Pad {public final android.app.Activity activity; public Pad(android.app.Activity a){activity=a;} public void close(){} public void confirmStopRoute(){}}''',
     'dev/pgrazor/LogActivity.java': 'package dev.pgrazor; public class LogActivity extends android.app.Activity {}',
     # Shells for collaborators whose real sources pull in Android UI/network far beyond Control's
     # narrow use of them. Control only references the members shelled here; policy is never exercised

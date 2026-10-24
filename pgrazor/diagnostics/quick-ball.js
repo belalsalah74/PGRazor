@@ -309,16 +309,26 @@ function event(s,kind,fields){if(s.queue.length>=LIMITS.queue){fault(s,Error('qu
 function fault(s,error){s.allowedUntil=0;s.stopping=true;s.reason=s.reason||String(error).slice(0,180);}
 function flush(s){for(const e of s.queue.splice(0)){try{console.log('[pgrazor-quick-ball] '+JSON.stringify(e));}catch(_){}if(typeof s.onEvent==='function')try{s.onEvent(e);}catch(_){}}}
 // ARM64 AAPCS: the 12-byte value arrives in x1 (item + float) and low w2 (three bools + padding).
-function throwWords(first,second,grade,curve){
+function throwWords(first,second,grade,curve,chooseRadius){
  const hex=first.replace(/^0x/,'').padStart(16,'0');if(!/^[0-9a-f]{16}$/i.test(hex))return null;
  const item=parseInt(hex.slice(8),16),flags=second>>>0;
  if(![1,2,3,5].includes(item)||(flags&255)>1||((flags>>>8)&255)>1||((flags>>>16)&255)!==0)return null;
  const bits=parseInt(hex.slice(0,8),16),view=new DataView(new ArrayBuffer(4));view.setUint32(0,bits);const radius=view.getFloat32(0);
  if(!Number.isFinite(radius)||radius<0||radius>1)return null;
- // Midpoints inside the standard Nice/Great/Excellent ring bands, safely away from boundaries.
- const radii=[null,0.9,0.5,0.1];if(grade){view.setFloat32(0,radii[grade]);}
+ // Test ranges stay inside the published rating bands, away from their cutoffs.
+ const ranges=[null,[0.75,0.95],[0.35,0.65],[0.10,0.25]];
+ if(grade){const [low,high]=ranges[grade];view.setFloat32(0,chooseRadius(()=>low+(high-low)*Math.random()));}
  const outBits=grade?view.getUint32(0):bits;
- return{first:'0x'+outBits.toString(16).padStart(8,'0')+hex.slice(8),second:(flags|(grade?1:0)|(curve?256:0))>>>0,reticle:grade?radii[grade]:radius};
+ return{first:'0x'+outBits.toString(16).padStart(8,'0')+hex.slice(8),second:(flags|(grade?1:0)|(curve?256:0))>>>0,reticle:view.getFloat32(0)};
+}
+function throwForRoute(s,first,second,route,now){
+ const previous=s.throwSample;s.throwSample=null;
+ const paired=route==='hit'&&previous&&previous.grade===s.throwGrade&&now>=previous.at&&now-previous.at<LIMITS.leaseMs&&(first===previous.original||first===previous.changed);
+ const changed=throwWords(first,second,s.throwGrade,s.throwCurve,sample=>paired?previous.radius:sample());
+ // The submit and hit hooks can see the same throw. Keep its one sampled float,
+ // not native object pointers; consume once and discard on the next submit.
+ if(changed&&s.throwGrade&&route==='submit')s.throwSample={grade:s.throwGrade,at:now,original:first,changed:changed.first,radius:changed.reticle};
+ return changed;
 }
 function encounterLabel(level,attack,defense,stamina,cp){
  const validIv=[attack,defense,stamina].every(v=>Number.isInteger(v)&&v>=0&&v<=15);
@@ -714,10 +724,10 @@ function install(s,p){
  if(p.throws.available)for(const [method,route] of [[p.throws.submit,'submit'],[p.throws.hit,'hit']])s.listeners.push(Interceptor.attach(method.address,{onEnter(args){
   if(!s.active||s.stopping||s.busy||s.throwFault||(!s.throwGrade&&!s.throwCurve))return;
   s.busy=true;try{
-   if(s.now()>=s.throwUntil||!unity(this.threadId)||args[0].isNull())return;
+   const now=s.now();if(now>=s.throwUntil||!unity(this.threadId)||args[0].isNull())return;
    if(route==='submit'){if(!exact(args[0],classes[BALL])||field(args[0],fields.bread,'bool')!==0)return;}
    else if(!api.class_is_assignable_from(p.throws.owner,api.object_get_class(args[0])))return;
-   const changed=throwWords(args[1].toString(),args[2].toInt32(),s.throwGrade,s.throwCurve);if(!changed)return;
+   const changed=throwForRoute(s,args[1].toString(),args[2].toInt32(),route,now);if(!changed)return;
    args[1]=ptr(changed.first);args[2]=ptr(changed.second);
    event(s,'throw-applied',{route,grade:['Off','Nice','Great','Excellent'][s.throwGrade],curve:s.throwCurve,reticle:changed.reticle,tid:this.threadId});
   }catch(e){s.throwFault=true;s.throwUntil=0;event(s,'throw-unavailable',{reason:String(e).slice(0,140)});}finally{s.busy=false;}
@@ -730,7 +740,7 @@ function install(s,p){
 }
 function start(options){
  if(!options||options.enabled!==true)return Promise.resolve({status:'disabled'});if(running)return Promise.resolve({status:'already-running'});
- let resolve;const promise=new Promise(r=>resolve=r);const s={promise,resolve,onEvent:options.onEvent,active:true,ready:false,stopping:false,reason:null,listeners:[],queue:[],attempt:null,seen:[],trace:null,traceOff:false,traceDropped:0,outcomeOff:false,outcomeHits:0,outcomeWindow:-Infinity,outcomeDropped:0,ivFault:false,ivCatch:true,ivOwned:false,ivOwnedFault:false,ivRecords:{catch:null},ivOwnedRecords:[],ivUntil:0,ivNext:0,mapMode:0,mapEpoch:0,mapUntil:0,mapFault:false,throwAr:false,arUntil:0,arFault:false,throwGrade:0,throwCurve:false,throwUntil:0,throwFault:false,allowedUntil:0,thread:null,matches:0,busy:false,inflight:0,retries:0,timer:null,now:()=>0};running=s;
+ let resolve;const promise=new Promise(r=>resolve=r);const s={promise,resolve,onEvent:options.onEvent,active:true,ready:false,stopping:false,reason:null,listeners:[],queue:[],attempt:null,seen:[],trace:null,traceOff:false,traceDropped:0,outcomeOff:false,outcomeHits:0,outcomeWindow:-Infinity,outcomeDropped:0,ivFault:false,ivCatch:true,ivOwned:false,ivOwnedFault:false,ivRecords:{catch:null},ivOwnedRecords:[],ivUntil:0,ivNext:0,mapMode:0,mapEpoch:0,mapUntil:0,mapFault:false,throwAr:false,arUntil:0,arFault:false,throwGrade:0,throwCurve:false,throwSample:null,throwUntil:0,throwFault:false,allowedUntil:0,thread:null,matches:0,busy:false,inflight:0,retries:0,timer:null,now:()=>0};running=s;
  function finish(){for(const h of s.listeners)try{h.detach();}catch(_){}s.listeners=[];s.active=false;const result={status:s.reason?'unavailable':'cancelled'};if(s.reason)result.reason=s.reason;event(s,'finished',result);flush(s);if(running===s)running=null;s.resolve(result);}
  function poll(){s.timer=null;if(!s.active)return;
   try{
@@ -754,8 +764,8 @@ function setMapTapOptions(mode,epoch,allowed){const s=running;if(!s||!s.active||
  try{s.mapMode=mode;s.mapEpoch=epoch;s.mapUntil=allowed===true?s.now()+LIMITS.leaseMs:0;return allowed===true;}catch(_){s.mapUntil=0;return false;}}
 function setArThrowOptions(enabled,allowed){const s=running;if(!s||!s.active||!s.ready||s.stopping||s.arFault)return false;s.throwAr=enabled===true;s.arUntil=allowed===true?s.now()+LIMITS.leaseMs:0;return true;}
 function setThrowOptions(grade,curve,allowed){const s=running;if(!s||!s.active||!s.ready||s.stopping||s.throwFault)return false;
- if(!Number.isInteger(grade)||grade<0||grade>3){s.throwUntil=0;return false;}
- try{s.throwGrade=grade;s.throwCurve=curve===true;s.throwUntil=allowed===true?s.now()+LIMITS.leaseMs:0;return allowed===true;}catch(e){s.throwUntil=0;return false;}}
+ if(!Number.isInteger(grade)||grade<0||grade>3){s.throwSample=null;s.throwUntil=0;return false;}
+ try{if(s.throwGrade!==grade||s.throwCurve!==(curve===true)||allowed!==true)s.throwSample=null;s.throwGrade=grade;s.throwCurve=curve===true;s.throwUntil=allowed===true?s.now()+LIMITS.leaseMs:0;return allowed===true;}catch(e){s.throwSample=null;s.throwUntil=0;return false;}}
 // Preferences are independent of Quick Catch; only a foreground lease permits writes.
 function setIvDisplayOptions(catchEnabled,ownedEnabled,allowed){const s=running;if(!s||!s.active||!s.ready||s.stopping)return false;
  if(s.ivCatch!==(catchEnabled===true)||s.ivOwned!==(ownedEnabled===true)||allowed!==true)s.ivNext=0;

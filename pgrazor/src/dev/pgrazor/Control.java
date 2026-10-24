@@ -449,6 +449,11 @@ public final class Control {
         final long received=SystemClock.elapsedRealtime();
         main.post(() -> {
             if(!mapTapAllowed()||mode!=mapTapMode||epoch!=mapTapEpoch||SystemClock.elapsedRealtime()-received>750)return;
+            if(engine.activeRouteToken()!=0){
+                mapTapEpoch++; // discard queued taps and any pre-dialog double-tap pairing
+                if(pad!=null)pad.confirmStopRoute();
+                return; // the accidental tap never becomes a walk or teleport
+            }
             if(mode==1)walkTo(latitude,longitude);else if(mode==2)teleport(latitude,longitude);
             else if(mode==3){if(mapTapSequence.doubleTap(latitude,longitude,sampledAt,epoch,android.view.ViewConfiguration.getDoubleTapTimeout()))teleport(latitude,longitude);else walkTo(latitude,longitude);}else return;
             event("map-tap-applied",String.format(Locale.US,"mode=%d lat=%.7f lon=%.7f",mode,latitude,longitude));

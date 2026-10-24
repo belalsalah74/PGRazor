@@ -115,6 +115,7 @@ function fixture(options={}){
   NativeCallback:function(fn){return fn;},CModule:function(code,symbols){assert(code.includes('get_nth_argument(ic,0)==execute_method'));filter=symbols;this.on_enter=str('filter-enter');this.on_leave=str('filter-leave');},
   Interceptor:{attach(address,callbacks){const h={address,callbacks,detached:false,detach(){this.detached=true;}};hooks.push(h);return h;}},setTimeout:(fn,delay)=>{const id=++nextTimer;timers.set(id,{fn,delay});return id;},clearTimeout:id=>timers.delete(id),console:{log:line=>{assert(!callback);events.push(JSON.parse(line.slice(line.indexOf('{'))));}}
  };
+ context.Math=Object.create(Math);context.Math.random=options.random||Math.random;
  const probe=vm.runInNewContext(source,context);
  function timer(){assert(timers.size);const[id,t]=timers.entries().next().value;timers.delete(id);ms+=t.delay;t.fn();}
  function inside(fn){const old=callback;callback=true;try{return fn();}finally{callback=old;}}
@@ -234,20 +235,40 @@ async function main(){
  console.log('PASS quick-ball: metadata/ABI, exact caller/result, Unity-thread proof, 20x success/escape apply, completion/off/lease/timeout restore, external/destroyed ownership, failed restore, background pending cleanup, duplicate/inflight cancellation, confirmed outcome/null/ambiguous/dedup/bounds/lease/enum/isolation, read-only trace route/identity/layout/isolation/bounds/lifecycle');
 }
 async function throwTests(){
- const f=fixture({throws:true});f.ready();assert.equal(f.events.find(e=>e.kind==='metadata-ready').throws.available,true);
+ let random=0,draws=0;
+ const f=fixture({throws:true,random:()=>{draws++;return random;}});f.ready();assert.equal(f.events.find(e=>e.kind==='metadata-ready').throws.available,true);
+ const radius=word=>{const view=new DataView(new ArrayBuffer(4));view.setUint32(0,parseInt(word.replace(/^0x/,'').padStart(16,'0').slice(0,8),16));return view.getFloat32(0);};
  const word='0x3f00000000000002'; // Great ball + ring 0.5, clean hit but outside bullseye.
  assert.deepEqual(f.throwCall(word,0),[word,0]);
- for(const [grade,bits]of [[1,'3f666666'],[2,'3f000000'],[3,'3dcccccd']]){
+ for(const [grade,low,high]of [[1,.75,.95],[2,.35,.65],[3,.10,.25]]){
   f.probe.setThrowOptions(grade,true,true);
-  for(const opts of [{},{hit:true}])assert.deepEqual(f.throwCall(word,0,opts),['0x'+bits+'00000002',257]);
+  const values=[];
+  for(const unit of [0,.5,.999999]){
+   random=unit;const before=draws,submit=f.throwCall(word,0);
+   assert.equal(radius(submit[0]),Math.fround(low+(high-low)*unit));
+   assert.equal(submit[0].slice(-8),'00000002','Ball type preserved');assert.equal(submit[1],257);
+   f.probe.setThrowOptions(grade,true,true); // Heartbeat renewal cannot resample the throw.
+   assert.deepEqual(f.throwCall(...submit,{hit:true}),submit,'Hit reuses the submitted float');
+   assert.equal(draws,before+1,'Exactly one random draw per paired throw');values.push(radius(submit[0]));
+  }
+  assert.equal(new Set(values).size,3,'Separate throws vary within each rating');
+  random=.25;const submit=f.throwCall(word,0),before=draws;random=.75;
+  assert.deepEqual(f.throwCall(word,0,{hit:true}),submit,'Original payload also pairs');assert.equal(draws,before);
+  assert.equal(radius(f.throwCall(word,0,{hit:true})[0]),Math.fround(low+(high-low)*.75),'Unpaired hit samples independently');
  }
  f.probe.setThrowOptions(0,true,true);assert.deepEqual(f.throwCall(word,0),[word,256]);
- f.probe.setThrowOptions(2,false,true);assert.deepEqual(f.throwCall(word,256),[word,257],'Existing curve retained');
+ f.probe.setThrowOptions(2,false,true);assert.equal(f.throwCall(word,256)[1],257,'Existing curve retained');
+ const beforeInvalid=draws;
  assert.deepEqual(f.throwCall(word,0x10000),[word,0x10000],'Miss stays missed');
  assert.deepEqual(f.throwCall('0x3f00000000000004',0),['0x3f00000000000004',0],'Master ball excluded');
  assert.deepEqual(f.throwCall(word,0,{bread:true}),[word,0]);
  f.setTid(88);assert.deepEqual(f.throwCall(word,0),[word,0]);f.setTid(77);
  f.advance(2501);assert.deepEqual(f.throwCall(word,0),[word,0],'Lease expiry');
+ assert.equal(draws,beforeInvalid,'Miss/excluded ball/mode/thread/expiry do not sample');
+ f.probe.setThrowOptions(2,false,true);random=0;
+ assert.equal(radius(f.throwCall(word,0,{hit:true})[0]),Math.fround(.35),'Expired pairing cannot survive lease renewal');
+ random=.25;f.throwCall(word,0);f.probe.setThrowOptions(2,false,false);f.probe.setThrowOptions(2,false,true);random=.75;
+ assert.equal(radius(f.throwCall(word,0,{hit:true})[0]),Math.fround(.575),'Off clears the pending sample');
  f.probe.setThrowOptions(3,true,false);assert.deepEqual(f.throwCall(word,0),[word,0]);
  assert.equal(f.writes.length,0,'Throw choices independent of animation speed toggle');await close(f);
  const bad=fixture({throws:true,badThrowSize:true});bad.ready();assert.equal(bad.events.find(e=>e.kind==='metadata-ready').throws.available,false);assert(!bad.hooks.some(h=>h.address.v===BASE+0xad5fbdc));await close(bad);

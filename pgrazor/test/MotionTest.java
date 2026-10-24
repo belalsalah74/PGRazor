@@ -127,7 +127,7 @@ public class MotionTest {
         check(e.routeProgress().total==0&&!e.walking,"Stop clears queue");
         e.walkRoute(new double[][]{{1,0},{1,1}});e.walkTo(2,2);
         check(e.routeProgress().total==1&&e.targetLatitude==2,"Single Walk here replaces queue");
-        double[][][] invalid={null,new double[0][],new double[51][2],{{1,1},null},{{1,1},{2}},{{1,1},{2,3,4}},{{1,1},{Double.NaN,0}},{{1,1},{91,0}}};
+        double[][][] invalid={null,new double[0][],new double[MotionEngine.MAX_ROUTE_STOPS+1][2],{{1,1},null},{{1,1},{2}},{{1,1},{2,3,4}},{{1,1},{Double.NaN,0}},{{1,1},{91,0}}};
         for(double[][] route:invalid) {
             boolean rejected=false;try {e.walkRoute(route);}catch(IllegalArgumentException expected){rejected=true;}
             check(rejected&&e.walking&&e.targetLatitude==2&&e.routeProgress().total==1,"Invalid later stop cannot partially replace existing route");
@@ -148,6 +148,23 @@ public class MotionTest {
         invalid=false; try{e.speed(-1);}catch(IllegalArgumentException expected){invalid=true;} check(invalid,"Reject negative speed");
         e.enabled=true; e.input(0,1); e.step(600); check(e.latitude<.000003,"No background time jump");
         testWalking();testInterruption();testRouteValidation();testMultipleStops();
+        MotionEngine guard=new MotionEngine();guard.position(0,0);
+        guard.walkTo(1,1);check(guard.activeRouteToken()==0,"Ordinary tap walk is not a planned route");
+        guard.walkRoute(new double[][]{{1,1}},true);long token=guard.activeRouteToken();
+        check(token!=0,"One-stop Autowalk is protected");guard.step(.25);
+        check(guard.activeRouteToken()==token&&guard.walking,"Prompt token leaves movement running");
+        guard.walkRoute(new double[][]{{2,2},{3,3}});
+        check(!guard.stopRoute(token)&&guard.walking,"Stale dialog cannot stop a replacement route");
+        check(guard.stopRoute(guard.activeRouteToken())&&!guard.walking,"Confirmation stops current route");
+
+        MotionEngine imported=new MotionEngine();imported.position(0,0);
+        double[][] longRoute=new double[300][2];
+        for(int i=0;i<longRoute.length;i++) {longRoute[i][0]=1;longRoute[i][1]=i/1000.0;}
+        imported.walkRoute(longRoute,true);
+        check(imported.routeProgress().total==300 && imported.targetLatitude==1,"GPX route above nearby limit keeps all points");
+        longRoute[0][0]=70;
+        check(imported.targetLatitude==1,"Imported route is copied");
+        imported.stop();check(imported.routeProgress().total==0,"Long route cancels normally");
         System.out.println("PASS: joystick and walk regressions; multi-stop frame budget, turns, duplicates, ownership, progress, cancellation, dateline and atomic validation");
     }
 }

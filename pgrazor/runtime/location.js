@@ -62,9 +62,39 @@ globalThis.PGRazorLocation = Object.freeze({create({Java, control, isDisposed, b
         const notify = Manager.nativeLocationUpdate.overload('java.lang.String', 'android.location.Location', 'int', 'android.content.Context');
         const installed = [];
         let manager = null, paused = false, stopped = false, runnable = null, first = true;
+        const providers = new Map();let nextProvider=1,Listener;
+        function restoreProviders() {
+            for(const record of providers.values()) {
+                try { record.provider.setListener(record.original); }
+                catch(error) { bootLog('location-listener-restore: '+error); }
+                record.provider.$dispose();record.original.$dispose();record.proxy.$dispose();
+            }
+            providers.clear();
+        }
+        function attachProviders(current) {
+            const iterator=current.providers.value.values().iterator();
+            while(iterator.hasNext()) {
+                const object=iterator.next();
+                if(Array.from(providers.values()).some(r=>r.provider.$isSameObject(object)))continue;
+                const provider=Java.cast(object,Java.use(String(object.getClass().getName())));
+                const original=provider.providerListener.value;if(original===null)continue;
+                const id=nextProvider++,proxy=Listener.$new();proxy.key.value=id;
+                const record={provider:Java.retain(provider),original:Java.retain(original),proxy,
+                    owner:current,name:String(provider.getProviderName())};
+                providers.set(id,record);
+                try { provider.setListener(proxy); }
+                catch(error){providers.delete(id);record.provider.$dispose();record.original.$dispose();proxy.$dispose();throw error;}
+            }
+        }
+        function forward(listener,method,args) {
+            const record=providers.get(listener.key.value);if(!record)return;
+            if(method!=='onProviderSatellites'&&enabled(record.owner)&&deliver(record.owner,record.name))return;
+            record.original[method].apply(record.original,args);
+        }
         function same(object) { return manager !== null && manager.$isSameObject(object); }
         function release() {
             if (runnable !== null) handler.removeCallbacks(runnable);
+            restoreProviders();
             const old = manager; manager = null;
             if (old !== null) old.$dispose();
         }
@@ -102,6 +132,7 @@ globalThis.PGRazorLocation = Object.freeze({create({Java, control, isDisposed, b
             if (stopped || isDisposed() || manager === null || paused) return;
             const current = manager;
             try {
+                attachProviders(current);
                 if (enabled(current)) deliver(current, 'fused');
             } catch (error) {
                 if (first) { first = false; bootLog('location-delivery-error: ' + error); }
@@ -119,6 +150,15 @@ globalThis.PGRazorLocation = Object.freeze({create({Java, control, isDisposed, b
             installed.length = 0;
         }
         try {
+            // Use a normal provider-listener object; never replace nativeLocationUpdate.
+            // ART can crash resolving calls to that replaced native method on provider threads.
+            Listener=Java.registerClass({name:'dev.pgrazor.LocationProviderListener',
+                implements:[Java.use('com.nianticlabs.nia.location.NianticLocationProvider$ProviderListener')],
+                fields:{key:'int'},methods:{
+                    onProviderStatus:function(status){forward(this,'onProviderStatus',[status]);},
+                    onProviderLocation:function(fix){forward(this,'onProviderLocation',[fix]);},
+                    onProviderSatellites:function(time,satellites){forward(this,'onProviderSatellites',[time,satellites]);}
+                }});
             const Runner = Java.registerClass({name: 'dev.pgrazor.LocationDeliveryTick',
                 implements: [Java.use('java.lang.Runnable')], methods: {run: tick}});
             runnable = Runner.$new();
@@ -138,15 +178,6 @@ globalThis.PGRazorLocation = Object.freeze({create({Java, control, isDisposed, b
                 return pause.call(this);
             });
             hook(resume, function () { const result = resume.call(this); if (locationManager(this)) capture(Java.cast(this, Manager)); return result; });
-            hook(notify, function (provider, fix, status, context) {
-                // Keep every reporting provider consistent, including stale/poor real fixes
-                // and permission-denied notifications. This changes only the game-facing
-                // synthetic provider; Android permission and OS location access stay denied.
-                if (enabled(this)) {
-                    if (deliver(this, String(provider))) return;
-                }
-                return notify.call(this, provider, fix, status, context);
-            });
             locationDelivery = {stop};
             control.event('location-delivery', 'Game location adapter installed; OS permission unchanged');
         } catch (error) {

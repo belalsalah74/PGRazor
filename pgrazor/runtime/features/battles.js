@@ -30,6 +30,14 @@
 
   try{
 
+   // Bread injects its gesture handler before entering the battle scope, so its
+   // OnEnable/SetChargeAttackButtons callbacks may already have run. Recover the
+   // scope-owned handler without depending on a first manual tap.
+   if(r.mode===2&&!r.gesture){const scope=target(r.scope);if(alive(scope)){
+    const g=readPtr(scope,t.fields.maxGesture);
+    if(!g.isNull()&&exact(g,classes[BATTLE_TYPES[31285]])&&alive(g)&&rocketBool(m.active,g)){r.gesture=hold(g);r.legacy=false;event(s,'battle-input',{mode:2,legacy:false,source:'scope'});}
+   }}
+
    // A battle scope survives the victory/results animation. Require live Active status
 
    // before any attack/button/dodge call; UI active/enabled alone is insufficient.

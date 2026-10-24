@@ -75,6 +75,7 @@ The map view owns projection, gestures, routes and selection. `MapTileSource` ow
 | Control policy, catch outcomes, settings export/import/reload, cooldown | `test/test_control_java.py` |
 | Ordered settings writer, coalescing and failure recovery | `test/test_settings_writer_java.py` |
 | Feed parsing/filtering and settings backup rules | `test/test_live_feed_java.py` |
+| GPX parsing, validation, round-trips and saved route storage | `test/test_gpx_java.py` |
 | Manifest, packaging, release assembly, private input, script bundles | Remaining `test/test_*.py` files |
 | Runtime behavior and bridge fixtures | Every `test/*-test.cjs` file |
 | Android compilation and saved-place validation | Full `build.py` (also run by CI) |

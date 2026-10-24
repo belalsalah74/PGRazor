@@ -40,6 +40,13 @@ import java.util.concurrent.TimeUnit;
 
 /** In-activity map picker. Merely browsing/selecting does not change location. */
 public final class WorldMapDialog {
+    /**
+     * A GPX route imported or picked for the route builder. The system file picker pauses the host
+     * and dismisses this dialog, so the choice is stashed here and restored as the draft when the
+     * route builder is reopened. Cleared when the route is started or the draft is cleared.
+     */
+    static volatile GpxRoute pendingRoute;
+
     public interface DestinationListener {
         /** Return true after applying the destination, or false to keep the picker open. */
         boolean onDestination(double latitude, double longitude);
@@ -105,15 +112,31 @@ public final class WorldMapDialog {
         layout.addView(map, new LinearLayout.LayoutParams(-1, dp(activity, 240)));
         CheckBox loop = new CheckBox(ui); loop.setText("Loop route"); loop.setTextSize(13);
         loop.setContentDescription("Repeat the route from the first stop after the last"); loop.setVisibility(View.GONE);
-        layout.addView(loop);
+        LinearLayout routeTools = new LinearLayout(ui);
+        routeTools.setGravity(Gravity.CENTER_VERTICAL);
+        routeTools.addView(loop,new LinearLayout.LayoutParams(0,dp(activity,48),1));
+        Button current=button(ui,"My location");
+        current.setContentDescription("Center map on your current in-game location");
+        current.setOnClickListener(v -> map.centerCurrentLocation());
+        routeTools.addView(current,new LinearLayout.LayoutParams(dp(activity,112),dp(activity,48)));
+        Button clearRoute=button(ui,"Clear route");
+        clearRoute.setContentDescription("Clear all stops from the route draft");
+        clearRoute.setVisibility(View.GONE);
+        routeTools.addView(clearRoute,new LinearLayout.LayoutParams(dp(activity,112),dp(activity,48)));
+        layout.addView(routeTools);
         LinearLayout actions = new LinearLayout(ui);
         Button globe = button(ui, "World"), center = button(ui, "Selected"), retry = button(ui, "Retry");
-        for (Button b : new Button[] {globe, center, retry}) actions.addView(b, new LinearLayout.LayoutParams(0, dp(activity, 48), 1));
+        // The GPX menu button only exists when the route builder is available, and stays hidden until route mode.
+        Button gpx = route == null ? null : button(ui, "GPX");
+        if (gpx != null) { gpx.setContentDescription("Save, import, or export a GPX route"); gpx.setVisibility(View.GONE); }
+        Button[] row = gpx == null ? new Button[] {globe, center, retry} : new Button[] {globe, center, retry, gpx};
+        for (Button b : row) actions.addView(b, new LinearLayout.LayoutParams(0, dp(activity, 48), 1));
         globe.setOnClickListener(v -> map.worldView());
         center.setOnClickListener(v -> map.centerSelection()); retry.setOnClickListener(v -> map.retry());
         layout.addView(actions);
         layout.addView(status);
-        RouteUi routes = route == null ? null : new RouteUi(activity,ui,map,routeMode,hint,globe,center,retry,loop,route,walk != null);
+        RouteUi routes = route == null ? null : new RouteUi(activity,ui,map,routeMode,hint,globe,center,retry,gpx,clearRoute,loop,route,walk != null);
+        if(routes!=null)routes.reopen=()->WorldMapDialog.show(activity,Control.engine.latitude,Control.engine.longitude,listener,walk,route);
         AlertDialog.Builder builder = new AlertDialog.Builder(ui).setTitle("World map").setView(layout)
             .setNegativeButton("Cancel", null).setPositiveButton("Teleport", null);
         if (walk != null) builder.setNeutralButton("Walk here", null);
@@ -140,11 +163,13 @@ public final class WorldMapDialog {
 
     /** Route mode reuses the map toolbar and dialog action rather than consuming another row. */
     private static final class RouteUi {
+        /** Manual builder cap; imported GPX routes may be larger, up to {@link #MAX}. */
         static final int LIMIT=50;
+        static final int MAX=GpxCodec.MAX_POINTS;
         final Activity activity;
         final Context ui;
         final MapView map;
-        final Button mode,add,undo,stops;
+        final Button mode,add,undo,stops,gpx,clearRoute;
         final TextView hint;
         final CheckBox loop;
         final RouteListener listener;
@@ -153,22 +178,35 @@ public final class WorldMapDialog {
         final List<AlertDialog> dialogs=new ArrayList<>();
         AlertDialog parent;
         boolean editing;
-        RouteUi(Activity activity,Context ui,MapView map,Button mode,TextView hint,Button add,Button undo,Button stops,CheckBox loop,RouteListener listener,boolean hasWalk) {
+        /** The current draft came from a GPX import/selection, so it may exceed the manual LIMIT. */
+        boolean imported;
+        String routeName="Route";
+        Runnable reopen;
+        boolean closed;
+        RouteUi(Activity activity,Context ui,MapView map,Button mode,TextView hint,Button add,Button undo,Button stops,Button gpx,Button clearRoute,CheckBox loop,RouteListener listener,boolean hasWalk) {
             this.activity=activity;this.ui=ui;this.map=map;this.mode=mode;this.hint=hint;this.loop=loop;
-            this.add=add;this.undo=undo;this.stops=stops;this.listener=listener;this.hasWalk=hasWalk;
-            mode.setOnClickListener(v -> {editing=!editing;refresh();});
+            this.add=add;this.undo=undo;this.stops=stops;this.gpx=gpx;this.clearRoute=clearRoute;this.listener=listener;this.hasWalk=hasWalk;
+            clearRoute.setOnClickListener(v -> clearDraft());
+            mode.setOnClickListener(v -> {editing=!editing;if(editing)maybeLoadPending();refresh();});
             add.setOnClickListener(v -> {if(editing)addStop();else map.worldView();});
             undo.setOnClickListener(v -> {if(editing)undo();else map.centerSelection();});
             stops.setOnClickListener(v -> {if(editing)showStops();else map.retry();});
+            gpx.setOnClickListener(v -> {if(editing)GpxRouteDialog.menu(activity,this::sourceRoute,this::onGpxChosen);});
         }
-        void attach(AlertDialog parent) {this.parent=parent;refresh();}
+        void attach(AlertDialog parent) {this.parent=parent;if(pendingRoute!=null){editing=true;maybeLoadPending();}refresh();}
         void refresh() {
+            if(draft.isEmpty())imported=false;
+            boolean big=draft.size()>LIMIT;
             mode.setText(editing ? "Map" : "Route");
             mode.setContentDescription(editing ? "Leave route builder without starting" : "Open route builder");
-            hint.setText(editing ? "Route: "+draft.size()+"/50 stops. Tap map, then Add stop." : "Drag to pan. Pinch to zoom. Tap to select a destination.");
+            hint.setText(!editing ? "Drag to pan. Pinch to zoom. Tap to select a destination."
+                : big ? "GPX route: "+draft.size()+" stops. Tap Start to walk it in order."
+                : "Route: "+draft.size()+"/"+LIMIT+" stops. Tap map, then Add stop.");
             add.setText(editing ? "Add stop" : "World"); add.setContentDescription(editing ? "Add selected destination as next route stop" : "Show world map");
             undo.setText(editing ? "Undo" : "Selected"); undo.setContentDescription(editing ? "Undo last route stop" : "Center selected destination");
             stops.setText(editing ? "Stops ("+draft.size()+")" : "Retry"); stops.setContentDescription(editing ? "View ordered route stops and clear route" : "Retry map tiles");
+            gpx.setText("GPX"); gpx.setVisibility(editing ? View.VISIBLE : View.GONE);
+            clearRoute.setVisibility(editing ? View.VISIBLE : View.GONE);clearRoute.setEnabled(!draft.isEmpty());
             add.setEnabled(!editing || draft.size()<LIMIT);undo.setEnabled(!editing || !draft.isEmpty());
             loop.setVisibility(editing ? View.VISIBLE : View.GONE); // route-only toggle; defaults to stopping at the last stop
             if(parent!=null) {
@@ -176,7 +214,7 @@ public final class WorldMapDialog {
                 Button action=parent.getButton(AlertDialog.BUTTON_POSITIVE);
                 action.setText(editing ? "Start route" : "Teleport");
                 action.setContentDescription(editing ? "Start route in numbered stop order" : "Teleport to selected destination");
-                action.setEnabled(!editing || draft.size()>=2);
+                action.setEnabled(!editing || (draft.size()>=(imported?1:2) && draft.size()<=MAX));
                 Button walk=parent.getButton(AlertDialog.BUTTON_NEUTRAL);
                 if(walk!=null && hasWalk)walk.setVisibility(editing ? View.GONE : View.VISIBLE);
             }
@@ -191,8 +229,9 @@ public final class WorldMapDialog {
             draft.add(new double[]{lat,lon});refresh();
         }
         void undo() {if(!draft.isEmpty())draft.remove(draft.size()-1);refresh();}
+        void clearDraft() {draft.clear();imported=false;routeName="Route";WorldMapDialog.pendingRoute=null;refresh();}
         void showStops() {
-            AlertDialog.Builder builder=new AlertDialog.Builder(ui).setTitle("Route stops ("+draft.size()+"/50)")
+            AlertDialog.Builder builder=new AlertDialog.Builder(ui).setTitle("Route stops ("+draft.size()+(draft.size()>LIMIT?"":"/"+LIMIT)+")")
                 .setNegativeButton("Close",null).setPositiveButton("Clear route",null);
             if(draft.isEmpty())builder.setMessage("Select a destination on the map and tap Add stop. Add at least two stops before starting.");
             else {
@@ -204,17 +243,47 @@ public final class WorldMapDialog {
             dialog.setOnDismissListener(d -> dialogs.remove(dialog));
             dialog.setOnShowListener(d -> {
                 Button clear=dialog.getButton(AlertDialog.BUTTON_POSITIVE);clear.setEnabled(!draft.isEmpty());
-                clear.setOnClickListener(v -> {draft.clear();refresh();dialog.dismiss();});
+                clear.setOnClickListener(v -> {clearDraft();dialog.dismiss();});
             });
             dialog.show();
         }
-        void start() {
-            if(draft.size()<2 || draft.size()>LIMIT)return;
+        /** Load a chosen GPX route as the current draft; it stays an explicit Start, never auto-walks. */
+        void onGpxChosen(GpxRoute route) {
+            WorldMapDialog.pendingRoute=route; // survive the picker round-trip / dialog dismissal
+            if(route==null)return;
+            if(closed){if(reopen!=null)GpxRouteDialog.whenResumed(activity,reopen);return;}
+            routeName=route.name;
+            if(!editing)editing=true;
+            apply(route.points());
+            refresh();
+            if(!draft.isEmpty())map.select(draft.get(0)[0],draft.get(0)[1]); // bring the route into view
+        }
+        /** Restore an imported/selected route when the builder is reopened, without clobbering a manual draft. */
+        void maybeLoadPending() {
+            GpxRoute pending=WorldMapDialog.pendingRoute;
+            if(pending!=null && draft.isEmpty()){routeName=pending.name;apply(pending.points());if(!draft.isEmpty())map.select(draft.get(0)[0],draft.get(0)[1]);}
+        }
+        private void apply(double[][] points) {
+            draft.clear();
+            for(double[] p:points)draft.add(new double[]{p[0],p[1]});
+            imported=true;
+        }
+        /** The current draft offered to the GPX menu for Save/Export; a placeholder name is renamed on Save. */
+        GpxRoute sourceRoute() {
+            if(draft.isEmpty())return null;
+            try {GpxRoute current=new GpxRoute(routeName,toArray());WorldMapDialog.pendingRoute=current;return current;}
+            catch(IllegalArgumentException invalid){return null;}
+        }
+        private double[][] toArray() {
             double[][] points=new double[draft.size()][2];
             for(int i=0;i<points.length;i++) {points[i][0]=draft.get(i)[0];points[i][1]=draft.get(i)[1];}
-            if(listener.onRoute(points,loop.isChecked()))parent.dismiss();
+            return points;
         }
-        void close() {for(AlertDialog dialog:new ArrayList<>(dialogs))dialog.dismiss();draft.clear();}
+        void start() {
+            if(draft.size()<(imported?1:2) || draft.size()>MAX)return;
+            if(listener.onRoute(toArray(),loop.isChecked())){WorldMapDialog.pendingRoute=null;parent.dismiss();}
+        }
+        void close() {closed=true;for(AlertDialog dialog:new ArrayList<>(dialogs))dialog.dismiss();draft.clear();}
     }
 
     /** Child dialogs share the map's activity; selecting a saved place never invokes Teleport. */
@@ -428,6 +497,12 @@ public final class WorldMapDialog {
         private double world() { return MapProjection.worldPixels(zoom, displayedTileSize()); }
         void zoom(int amount) { int next = Math.max(0, Math.min(19, zoom + amount)); if (next != zoom) { zoom = next; viewportChanged(); } }
         void worldView() { zoomScale=1; zoom = 0; centerX = .5; centerY = .5; viewportChanged(); }
+        void centerCurrentLocation() {
+            double lat=Control.engine.latitude,lon=Control.engine.longitude;
+            if(!Double.isFinite(lat)||!Double.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return;
+            zoomScale=1;if(zoom==0)zoom=14;
+            centerX=MapProjection.x(lon);centerY=MapProjection.y(lat);viewportChanged();
+        }
         void centerSelection() { zoomScale=1; if (zoom == 0) zoom = 14; centerX = MapProjection.x(longitude); centerY = MapProjection.y(latitude); viewportChanged(); }
         void select(double latitude, double longitude) {
             this.latitude = latitude; this.longitude = longitude;
@@ -519,6 +594,7 @@ public final class WorldMapDialog {
                     int first=(int)Math.ceil((-radius-x)/pixels),last=(int)Math.floor((getWidth()+radius-x)/pixels);
                     for(int repeat=first;repeat<=last && repeat<first+32;repeat++) {
                         float shownX=(float)(x+repeat*pixels),shownY=(float)y;
+                        if(shownY < -radius || shownY > getHeight()+radius)continue;
                         paint.setColor(Color.WHITE);canvas.drawCircle(shownX,shownY,radius+2,paint);
                         paint.setColor(Color.rgb(25,103,190));canvas.drawCircle(shownX,shownY,radius,paint);
                         paint.setTextSize(radius*1.1f);paint.setTextAlign(Paint.Align.CENTER);paint.setColor(Color.WHITE);

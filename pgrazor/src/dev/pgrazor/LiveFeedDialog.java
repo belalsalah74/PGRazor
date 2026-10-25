@@ -67,7 +67,8 @@ public final class LiveFeedDialog {
             .setNegativeButton("Close", null)
             .create();
         Controller controller = new Controller(activity, ui, dialog, root);
-        DialogLifecycle.bind(activity, dialog, controller::close);
+        DialogLifecycle.bind(activity, dialog, controller::close, ()->controller.showingLogin,
+            controller::pauseLogin,controller::resumeLogin);
         dialog.setOnShowListener(d -> controller.attach());
         dialog.show();
     }
@@ -96,6 +97,7 @@ public final class LiveFeedDialog {
         private final FeedAdapter adapter = new FeedAdapter();
         private boolean closed;
         private boolean showingLogin;
+        private boolean loginPaused, renderOnResume;
         private int generation;               // bumped on radius/min-IV change, logout and close
         private boolean fetchInFlight, loginInFlight;
         private long lastFetchStartedElapsed; // SystemClock.elapsedRealtime
@@ -144,6 +146,14 @@ public final class LiveFeedDialog {
             main.postDelayed(tick, 1000);
         }
 
+        private void pauseLogin(){loginPaused=true;main.removeCallbacks(tick);}
+        private void resumeLogin(){
+            if(closed||!loginPaused)return;
+            loginPaused=false;
+            if(renderOnResume){renderOnResume=false;render();}
+            main.removeCallbacks(tick);main.postDelayed(tick,1000);
+        }
+
         // ------------------------------------------------------------------ rendering
 
         private void render() {
@@ -172,17 +182,21 @@ public final class LiveFeedDialog {
             username.setHint("Username");
             username.setSingleLine(true);
             username.setInputType(InputType.TYPE_CLASS_TEXT);
-            noAutofill(username);
+            username.setId(View.generateViewId());
+            username.setAutofillHints(View.AUTOFILL_HINT_USERNAME);
+            username.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
             username.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_NEXT);
             addLoginField(form, username);
             final EditText password = new EditText(ui);
             password.setHint("Password");
             password.setSingleLine(true);
-            // No suggestions store and no autofill so the password is never retained by the system.
+            // Let the user's password manager fill credentials; the app stores only its session.
             password.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
             password.setTypeface(android.graphics.Typeface.DEFAULT);
             password.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
-            noAutofill(password);
+            password.setId(View.generateViewId());
+            password.setAutofillHints(View.AUTOFILL_HINT_PASSWORD);
+            password.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
             addLoginField(form, password);
             final Button login = button("Log in");
             login.setPadding(0, 0, 0, 0);
@@ -196,10 +210,11 @@ public final class LiveFeedDialog {
                 login.performClick(); return true;
             });
             login.setOnClickListener(v -> {
+                if(loginInFlight||loginPaused)return;
                 String u = username.getText().toString().trim();
                 String p = password.getText().toString();
                 // Clear the password field immediately; it stays only in the local that is handed to
-                // the worker, never logged, saved or auto-filled.
+                // the worker, never logged or saved by PGRazor.
                 password.setText("");
                 if (u.isEmpty() || p.isEmpty()) { status.setText("Enter your username and password."); return; }
                 if (loginInFlight) return;
@@ -239,7 +254,8 @@ public final class LiveFeedDialog {
                         showingLogin = false;
                         lastError = null; note = ""; lastUpdated = 0; backoffUntilElapsed = 0;
                         entries.clear();
-                        render(); // buildFeed() kicks off the first fetch
+                        if(loginPaused)renderOnResume=true;
+                        else render(); // buildFeed() kicks off the first fetch
                     });
                 } catch (LiveFeedClient.FeedException fe) {
                     final String msg = loginError(fe);
@@ -517,7 +533,7 @@ public final class LiveFeedDialog {
          *  "updated" time, and polls once a refresh interval has elapsed (never while in flight or
          *  backing off). Keeps the list current between network fetches with no extra requests. */
         private void tick() {
-            if (closed) return;
+            if (closed || loginPaused) return;
             if (activity.isFinishing() || activity.isDestroyed()) {
                 if (dialog.isShowing()) dialog.dismiss(); else close();
                 return;
@@ -801,9 +817,6 @@ public final class LiveFeedDialog {
         private Button segButton(String text) {
             Button b = new Button(ui); b.setText(text); b.setAllCaps(false); b.setTextSize(13);
             b.setPadding(dp(10), 0, dp(10), 0); b.setMinWidth(dp(52)); return b;
-        }
-        private void noAutofill(View v) {
-            if (android.os.Build.VERSION.SDK_INT >= 26) v.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         }
     }
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Preserve the LivePokeMap login form during password-manager autofill and support username/password autofill hints.
+- Use one latitude, longitude field for quick-menu teleport, accepting coordinates with or without a space after the comma.
+
 ## v0.1.4
 
 [Full release notes](docs/releases/v0.1.4.md)

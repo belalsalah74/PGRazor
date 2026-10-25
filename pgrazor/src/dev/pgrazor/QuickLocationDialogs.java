@@ -27,18 +27,15 @@ public final class QuickLocationDialogs {
         Context ctx = themed(activity);
         LinearLayout form = new LinearLayout(ctx); form.setOrientation(LinearLayout.VERTICAL);
         int p = dp(ctx, 22); form.setPadding(p, dp(ctx, 8), p, dp(ctx, 8));
-        EditText lat = input(ctx, "Latitude (-90 to 90)");
-        EditText lon = input(ctx, "Longitude (-180 to 180)");
-        form.addView(lat); form.addView(lon);
+        EditText coordinates = input(ctx, "Latitude, longitude");
+        form.addView(coordinates);
         AlertDialog dialog = new AlertDialog.Builder(ctx).setTitle("Teleport to coordinates").setView(form)
             .setNegativeButton("Cancel", null).setPositiveButton("Teleport", null).create();
         dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-            double la, lo;
-            try { la = Double.parseDouble(lat.getText().toString().trim()); lo = Double.parseDouble(lon.getText().toString().trim()); }
-            catch (NumberFormatException e) { lat.setError("Enter numeric coordinates"); return; }
-            if (!(la >= -90 && la <= 90)) { lat.setError("Latitude must be between -90 and 90"); return; }
-            if (!(lo >= -180 && lo <= 180)) { lon.setError("Longitude must be between -180 and 180"); return; }
-            if (target.teleport(la, lo)) dialog.dismiss();
+            double[] point;
+            try { point=CoordinateInput.parse(coordinates.getText().toString()); }
+            catch (IllegalArgumentException e) { coordinates.setError(e.getMessage()); return; }
+            if (target.teleport(point[0], point[1])) dialog.dismiss();
         }));
         show(activity,dialog);
     }
@@ -76,7 +73,7 @@ public final class QuickLocationDialogs {
 
     private static EditText input(Context ctx, String hint) {
         EditText e = new EditText(ctx); e.setSingleLine(true); e.setHint(hint);
-        e.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
+        e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         return e;
     }
     private static Context themed(Activity a) {

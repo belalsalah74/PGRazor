@@ -442,7 +442,7 @@ function scheduleQuickBall() {
         const methods=[
             [control.setQuickBallEnabled.overload('boolean'),false],
             [control.setQuickBallReady.overload('boolean','java.lang.String'),false],
-            [control.setMapTapMode.overload('int'),true],[control.setThrowGrade.overload('int'),true],[control.setThrowCurve.overload('boolean'),true]
+            [control.setMapTapMode.overload('int'),true],[control.setThrowGrade.overload('int'),true],[control.setThrowCurve.overload('boolean'),true],[control.setThrowAlwaysHit.overload('boolean'),true]
         ];
         // Summary already owns shared lifecycle hooks when both are bundled.
         // Its shared callbacks revoke both features without replacing each other.
@@ -479,11 +479,13 @@ function scheduleQuickBall() {
                         quickBallNativeReady=true;
                         control.setQuickBallReady(true,'Ready: 20x catch and break-free animation');
                         control.setThrowReady(!!(event.throws && event.throws.available));
+                        if(control.setThrowAlwaysHitReady)control.setThrowAlwaysHitReady(!!(event.alwaysHit && event.alwaysHit.available));
                         control.setThrowArReady(!!(event.arThrows && event.arThrows.available));
                         control.setMapTapReady(!!(event.mapTap && event.mapTap.available));
                         if(control.setIvOwnedReady)control.setIvOwnedReady(!!(event.ivOwned && event.ivOwned.available));
                     }
                     if(event.kind==='throw-unavailable')control.setThrowReady(false);
+                    if(event.kind==='always-hit-unavailable' && control.setThrowAlwaysHitReady)control.setThrowAlwaysHitReady(false);
                     if(event.kind==='ar-throw-unavailable')control.setThrowArReady(false);
                     if(event.kind==='map-tap-unavailable')control.setMapTapReady(false);
                     if(!disposed && event.kind==='map-tap' && Number.isFinite(event.boottimeMs)) {
@@ -562,7 +564,7 @@ function heartbeat() {
         }
         if (quickBall && !quickBallFailed && bootParameters.quickBall===true) {
             try {quickBall.setAllowed(control.quickBallAllowed());
-                if(quickBall.setThrowOptions)quickBall.setThrowOptions(control.throwGrade(),control.throwCurve(),control.throwAllowed());
+                if(quickBall.setThrowOptions)quickBall.setThrowOptions(control.throwGrade(),control.throwCurve(),control.throwAllowed(),control.throwAlwaysHit()&&control.throwAlwaysHitReady());
                 if(quickBall.setArThrowOptions)quickBall.setArThrowOptions(control.throwAr(),control.throwAllowed()&&control.throwArReady());
                 if(quickBall.setMapTapOptions)quickBall.setMapTapOptions(control.mapTapMode(),control.mapTapEpoch(),control.mapTapAllowed());
                 if(quickBall.setIvDisplayOptions)quickBall.setIvDisplayOptions(control.ivCatchEnabled(),control.ivOwnedEnabled(),control.ivDisplayAllowed());}
@@ -604,7 +606,7 @@ function start() {
                 control.event('translated-ready','ARM game runtime connected to host Java controls');
                 scheduleDiagnostic();scheduleInteraction();scheduleQuickSummary();scheduleQuickBall();
             }
-            const policy=JSON.stringify(['active','quickSummaryAllowed','quickBallAllowed','autoTransferAllowed','transferProtect','itemRules','quickSpinAllowed','mapTapMode','mapTapEpoch','throwGrade','throwCurve'].map(name=>control[name]()));
+            const policy=JSON.stringify(['active','quickSummaryAllowed','quickBallAllowed','autoTransferAllowed','transferProtect','itemRules','quickSpinAllowed','mapTapMode','mapTapEpoch','throwGrade','throwCurve','throwAlwaysHit'].map(name=>control[name]()));
             if(lastPolicy&&lastPolicy!==policy){revokeQuickSummary();revokeQuickBall();}
             lastPolicy=policy;
             syncTransferPolicy();syncBerryPolicy();

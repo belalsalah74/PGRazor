@@ -28,7 +28,7 @@ The Android package identity stays compatible with the game. An official-store i
 | Area | Controls |
 | --- | --- |
 | Map | Optional location spoofing, including with app location permission denied; camera-relative joystick, saved locations, GPX import/export and saved routes, Autowalk, tap-to-walk/teleport, nearby stop/gym/raid layers |
-| Catching | Quick Catch; Nice/Great/Excellent throws; always curveball; optional AR+ flag; optional level and color-graded IV display; berry selector |
+| Catching | Quick Catch; Always Hit; Nice/Great/Excellent throws; always curveball; optional AR+ flag; optional level and color-graded IV display; berry selector |
 | Inventory | Optional IV/level on Pokémon details; transfer newly caught Pokémon below 90% IV; configurable item limits |
 | Keep rules | Legendary/mythical/Ultra Beasts, shiny, event/costume, background, **XXS**, **XXL**, searchable custom species keep list, and a persistent Keep All overlay; favorites and eggs always kept |
 | Virtual Go Plus | Nearby wild catches with red balls, nearby stop spins, optional notifications, target marker and activity status |

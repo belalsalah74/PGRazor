@@ -17,7 +17,7 @@ const LITERALS=['CatchError','CatchSuccess','CatchEscape','CatchFlee','CatchMiss
 const CODE={btxu:[0xad58170,'fe0f1df8f65701a9f44f02a9b41b02f0f30300aa8886623928040037e0ef01d0'],get_speed:[0xd954a40,'fe57bea9f44f01a974bc00d0f30300aa8866793908010037809700d000800c91'],set_speed:[0xd954b48,'e80f1dfcfe5701a9f44f02a90840201e74bc00d0f30300aa886a793908010037'],op_Implicit:[0xda6bba0,'fe0f1df8f65701a9f44f02a9f4b30090f30300aa882e673988020036f48800d0']};
 const SPEC={domain_get:['pointer',[]],domain_get_assemblies:['pointer',['pointer','pointer']],assembly_get_image:['pointer',['pointer']],class_from_name:['pointer',['pointer','pointer','pointer']],class_get_type:['pointer',['pointer']],class_get_field_from_name:['pointer',['pointer','pointer']],field_get_type:['pointer',['pointer']],field_get_flags:['int',['pointer']],field_get_parent:['pointer',['pointer']],field_get_offset:['size_t',['pointer']],class_get_method_from_name:['pointer',['pointer','pointer','int']],method_get_class:['pointer',['pointer']],method_get_name:['pointer',['pointer']],method_get_flags:['uint32',['pointer','pointer']],method_get_param_count:['uint32',['pointer']],method_get_param:['pointer',['pointer','uint32']],method_get_return_type:['pointer',['pointer']],method_is_generic:['bool',['pointer']],method_is_inflated:['bool',['pointer']],class_from_type:['pointer',['pointer']],class_is_enum:['bool',['pointer']],class_enum_basetype:['pointer',['pointer']],class_is_valuetype:['bool',['pointer']],class_value_size:['int',['pointer','pointer']],field_static_get_value:['void',['pointer','pointer']],type_get_name:['pointer',['pointer']],free:['void',['pointer']],thread_current:['pointer',[]],thread_attach:['pointer',['pointer']],thread_detach:['void',['pointer']],object_get_class:['pointer',['pointer']],field_get_value:['void',['pointer','pointer','pointer']],runtime_invoke:['pointer',['pointer','pointer','pointer','pointer']],object_unbox:['pointer',['pointer']],gchandle_new:['pointer',['pointer','bool']],gchandle_get_target:['pointer',['pointer']],gchandle_free:['void',['pointer']]};
 // Trace-only exports are optional: a missing one disables only the trace part using it.
-const OPTIONAL={object_new:['pointer',['pointer']],field_set_value:['void',['pointer','pointer','pointer']],object_get_virtual_method:['pointer',['pointer','pointer']],string_new:['pointer',['pointer']],type_is_byref:['bool',['pointer']],class_is_assignable_from:['bool',['pointer','pointer']],class_get_methods:['pointer',['pointer','pointer']],string_length:['int',['pointer']],string_chars:['pointer',['pointer']]};
+const OPTIONAL={object_new:['pointer',['pointer']],field_set_value:['void',['pointer','pointer','pointer']],object_get_virtual_method:['pointer',['pointer','pointer']],string_new:['pointer',['pointer']],type_is_byref:['bool',['pointer']],class_is_assignable_from:['bool',['pointer','pointer']],class_get_methods:['pointer',['pointer','pointer']],class_get_fields:['pointer',['pointer','pointer']],string_length:['int',['pointer']],string_chars:['pointer',['pointer']]};
 // Read-only trace constants. Hashes are Animator.StringToHash values compared as
 // unsigned. Sources: build/feature-research/BALL-PRESENTATION-CONTROLS.txt:76-90,
 // 119-125 and BALL-CONTROLLER-DECODED.txt:29-33,173-187.
@@ -33,7 +33,7 @@ const WILDMAP='Niantic.Holoholo.Map.WildMapPokemon',WILDPROTO='Holoholo.Rpc.Wild
 const GROUND='Niantic.Holoholo.Map.GroundTapHandler',MAPVIEW='Niantic.Holoholo.Map.MapViewHandler',LATLNG='Niantic.LatLng',VEC3='UnityEngine.Vector3';
 const ARVALUES='Holoholo.Rpc.ARPlusEncounterValuesProto',MAPPOKEMON='Niantic.Holoholo.Map.MapPokemon';
 const THROW='Niantic.Holoholo.Encounter.PokeballThrow',ENCOUNTER='Niantic.Holoholo.Encounter.EncounterState';
-const INFO='UnityEngine.AnimatorStateInfo',RAC='UnityEngine.RuntimeAnimatorController',OVERRIDE='UnityEngine.AnimatorOverrideController',OPTIONAL_CLASSES=[ARVALUES,MAPPOKEMON,WILDMAP,WILDPROTO,ENCOUNTEROUT,TAPPABLE,NAMEPLATE,PK,MAPPK,LEVELS,UITEXT,PANEL,'UnityEngine.UI.Outline','UnityEngine.UI.Shadow','UnityEngine.Behaviour','UnityEngine.Component','UnityEngine.GameObject','UnityEngine.Color','UnityEngine.Vector2','UnityEngine.TextAnchor','UnityEngine.HorizontalWrapMode',GROUND,MAPVIEW,LATLNG,VEC3,THROW,ENCOUNTER,INFO,'System.Int32','System.String',RAC,OVERRIDE];
+const INFO='UnityEngine.AnimatorStateInfo',RAC='UnityEngine.RuntimeAnimatorController',OVERRIDE='UnityEngine.AnimatorOverrideController',OPTIONAL_CLASSES=['System.Action','Niantic.Holoholo.SchedulerStateMachine',ARVALUES,MAPPOKEMON,WILDMAP,WILDPROTO,ENCOUNTEROUT,TAPPABLE,NAMEPLATE,PK,MAPPK,LEVELS,UITEXT,PANEL,'UnityEngine.UI.Outline','UnityEngine.UI.Shadow','UnityEngine.Behaviour','UnityEngine.Component','UnityEngine.GameObject','UnityEngine.Color','UnityEngine.Vector2','UnityEngine.TextAnchor','UnityEngine.HorizontalWrapMode',GROUND,MAPVIEW,LATLNG,VEC3,THROW,ENCOUNTER,INFO,'System.Int32','System.String',RAC,OVERRIDE];
 const INFO_FIELDS=[['m_Name','System.Int32'],['m_Path','System.Int32'],['m_FullPath','System.Int32'],['m_NormalizedTime','System.Single'],['m_Length','System.Single'],['m_Speed','System.Single'],['m_SpeedMultiplier','System.Single'],['m_Tag','System.Int32'],['m_Loop','System.Int32']];
 const BALL_HASHES=[['dsmh','Close',3535843008],['dsmi','Closed',57362642],['dsmj','Spawn',1372578019],['dsmk','Open',71445658],['dsml','Drop',3492260380],['dsmm','Shake',3049724742],['dsmn','CodeDrivenDrop',1232599366],['dsmo','Fly',1808254291],['dsmp','End',951154001],['dsmq','Breakout',596303718],['dsmr','Wait',3722194139],['dsms','ShrinkFinished',382342365],['dsmt','Land',137525990]];
 const NUM_SHAKES=3410899964,WAIT=3722194139,END=951154001,CONTROLLER='PokeballAnimator';
@@ -229,6 +229,26 @@ function prepare(module,api,domain){
    const hit=method(owner,'NotifyPokeballHit','System.Void',[THROW],false,[0xad93280,'080441f9c80000b4002140f9031540f9427c4092040d40f980001fd6c0035fd6']);
    return{submit,hit,owner};
   });
+  const alwaysHit=part(()=>{
+   if(!throws.available||!api.class_get_fields)throw Error('always-hit-api');
+   const ball=classes[BALL],machine=need('Niantic.Holoholo.SchedulerStateMachine'),action=need('System.Action');
+   const iter=Memory.alloc(8);iter.writePointer(ptr(0));let current=null;
+   for(let i=0;i<128;i++){const f=api.class_get_fields(machine,iter);if(f.isNull())break;
+    if(Number(api.field_get_offset(f).toString())===0x18&&!(api.field_get_flags(f)&0x50)&&typeName(api,api.field_get_type(f)).startsWith('Niantic.Holoholo.')){current=f;break;}}
+   if(!current)throw Error('always-hit-current-state');
+   return{machine,action,current,
+    state:check(ball,'dsld','Niantic.Holoholo.SchedulerStateMachine',0x258),
+    flying:check(ball,'dsly','Niantic.Holoholo.SchedulerStateCoroutine',0x2f8),
+    falling:check(ball,'dslx','Niantic.Holoholo.SchedulerStateCoroutine',0x2f0),
+    pokemon:check(ball,'dslc','Niantic.Holoholo.Encounter.IEncounterPokemon',0x250),
+    hit:check(ball,'HitPokemon','System.Action',0x50),item:check(ball,'<BallType>k__BackingField','Holoholo.Rpc.Item',0x374),
+    invoke:method(action,'Invoke','System.Void',[],false,null),
+    collision:method(ball,'OnCollisionEnter','System.Void',['UnityEngine.Collision'],false,[0xad5a18c,'fe5fbda9f65701a9f44f02a9b51b02b0f40301aaf30300aa']),
+    trigger:method(ball,'OnTriggerEnter','System.Void',['UnityEngine.Collider'],false,[0xad5aa08,'fe0f1df8f65701a9f44f02a9b51b02b0f40301aaf30300aa']),
+    launch:method(ball,'Launch','System.Void',['UnityEngine.Vector2'],false,[0xad5b58c,'ff8302d1ef3b036ded33046deb2b056de923066dfe5f07a9']),
+    release:method(ball,'EndDrag','System.Void',[],false,[0xad5b470,'fe57bea9f44f01a9b41b0290f30300aa88a2623908010037']),
+    makeThrow:method(ball,'btyb',THROW,['System.Boolean'],false,[0xad5ad20,'ea0f1cfce9a3006dfe0f00f9f65702a9f44f03a9b51b02b0'])};
+  });
   const arThrows=part(()=>{
    if(!throws.available||!api.object_new||!api.field_set_value)throw Error('ar-throw-api-unavailable');
    const values=need(ARVALUES),owner=need(MAPPOKEMON),wild=need(WILDMAP);
@@ -302,7 +322,7 @@ function prepare(module,api,domain){
     colorGet:method(shadow,'get_effectColor','UnityEngine.Color',[],false,null),colorSet:method(shadow,'set_effectColor','System.Void',['UnityEngine.Color'],false,null),
     distanceGet:method(shadow,'get_effectDistance','UnityEngine.Vector2',[],false,null),distanceSet:method(shadow,'set_effectDistance','System.Void',['UnityEngine.Vector2'],false,null)};
   });
-  return{module,api,classes,fields,fieldMeta,methods,success,outcomes,trace,throws,arThrows,mapTap,iv,ivText,ivOwned,ivOutline,caller:module.base.add(0xad691d0)};
+  return{module,api,classes,fields,fieldMeta,methods,success,outcomes,trace,throws,alwaysHit,arThrows,mapTap,iv,ivText,ivOwned,ivOutline,caller:module.base.add(0xad691d0)};
  }finally{if(owned&&!owned.isNull())api.thread_detach(owned);}
 }
 function event(s,kind,fields){if(s.queue.length>=LIMITS.queue){fault(s,Error('queue-limit'));return false;}let time=null;try{time=s.now();}catch(_){}s.queue.push(Object.assign({kind,boottimeMs:time},fields||{}));return true;}
@@ -721,6 +741,35 @@ function install(s,p){
    }catch(e){s.arFault=true;event(s,'ar-throw-unavailable',{reason:String(e)});}finally{s.busy=false;}
   },onLeave(){if(this.arHandle){api.gchandle_free(this.arHandle);this.arHandle=null;s.inflight--;}}
  }));
+ // Normalize at the ball collision event, before normal catch/berry submission.
+ // Keep server outcomes untouched; only manually released ordinary balls qualify.
+ if(p.alwaysHit.available){const firstListener=s.listeners.length;try{const h=p.alwaysHit;let busy=false,handled=null;
+  const enabled=()=>s.active&&!s.stopping&&!s.alwaysHitFault&&s.throwAlwaysHit&&s.now()<s.throwUntil&&unity(Process.getCurrentThreadId());
+  const valid=ball=>exact(ball,classes[BALL])&&field(ball,fields.bread,'bool')===0&&[1,2,3,5].includes(field(ball,h.item,'int'));
+  for(const m of [h.launch,h.release])s.listeners.push(Interceptor.attach(m.address,{onEnter(a){if(enabled()&&valid(a[0]))handled=null;}}));
+  for(const [m,route]of [[h.collision,'collision'],[h.trigger,'boundary']]){
+   const original=new NativeFunction(m.address,'void',['pointer','pointer','pointer'],{scheduling:'exclusive',exceptions:'propagate'});
+   const replacement=new NativeCallback(function(ball,other,info){
+    if(!enabled()||busy)return original(ball,other,info);
+    try{
+     if(!valid(ball))return original(ball,other,info);
+     const machine=field(ball,h.state,'pointer');if(!exact(machine,h.machine))return original(ball,other,info);
+     const current=field(machine,h.current,'pointer');
+     if(current.isNull()||(!current.equals(field(ball,h.flying,'pointer'))&&!current.equals(field(ball,h.falling,'pointer'))))return original(ball,other,info);
+     if(handled===ball.toString())return;
+     const action=field(ball,h.hit,'pointer');if(!exact(action,h.action)||field(ball,h.pokemon,'pointer').isNull())return original(ball,other,info);
+     busy=true;handled=ball.toString();invoke(h.invoke.method,action);event(s,'always-hit-applied',{route});
+    }catch(e){s.alwaysHitFault=true;event(s,'always-hit-unavailable',{reason:String(e)});}finally{busy=false;}
+   },'void',['pointer','pointer','pointer']);
+   Interceptor.replace(m.address,replacement);s.listeners.push({detach(){Interceptor.revert(m.address);}});
+  }
+  // btyb returns the 12-byte value in x0/w1. Normalize before it reaches either
+  // the berry interceptor or throw grading, including an attacking target.
+  s.listeners.push(Interceptor.attach(h.makeThrow.address,{onEnter(a){this.force=enabled()&&valid(a[0]);},onLeave(ret){if(!this.force)return;
+   const flags=this.context.x1.toUInt32();if(((flags>>>16)&255)===1){this.context.x1=ptr((flags&0xff00ffff)>>>0);event(s,'always-hit-normalized',{});}
+  }}));
+ }catch(e){for(const listener of s.listeners.splice(firstListener).reverse())try{listener.detach();}catch(_){}s.alwaysHitFault=true;p.alwaysHit={available:false,reason:String(e)};}
+ }
  if(p.throws.available)for(const [method,route] of [[p.throws.submit,'submit'],[p.throws.hit,'hit']])s.listeners.push(Interceptor.attach(method.address,{onEnter(args){
   if(!s.active||s.stopping||s.busy||s.throwFault||(!s.throwGrade&&!s.throwCurve))return;
   s.busy=true;try{
@@ -733,14 +782,14 @@ function install(s,p){
   }catch(e){s.throwFault=true;s.throwUntil=0;event(s,'throw-unavailable',{reason:String(e).slice(0,140)});}finally{s.busy=false;}
  }}));
  const part=x=>x.available?{available:true}:{available:false,reason:x.reason};
- s.ready=true;event(s,'metadata-ready',{fields:p.fieldMeta,iv:part(p.iv),ivOwned:part(p.ivOwned),ivOutline:part(p.ivOutline),mapTap:part(p.mapTap),throws:part(p.throws),arThrows:part(p.arThrows),successValue:p.success,multiplier:BALL_SPEED,leaseMs:LIMITS.leaseMs,timeoutMs:LIMITS.timeoutMs,
+ s.ready=true;event(s,'metadata-ready',{fields:p.fieldMeta,iv:part(p.iv),ivOwned:part(p.ivOwned),ivOutline:part(p.ivOutline),mapTap:part(p.mapTap),throws:part(p.throws),alwaysHit:part(p.alwaysHit),arThrows:part(p.arThrows),successValue:p.success,multiplier:BALL_SPEED,leaseMs:LIMITS.leaseMs,timeoutMs:LIMITS.timeoutMs,
   outcomes:p.outcomes.available?{available:true,values:p.outcomes.values}:{available:false,reason:p.outcomes.reason},
   trace:t.available?{available:true,stateInfo:{valueSize:36,align:4,offsets:INFO_FIELDS.map((_,i)=>0x10+i*4)},identity:part(t.identity),name:part(t.name),params:part(t.params),
    limits:{ms:LIMITS.traceMs,ticks:LIMITS.traceTicks,events:LIMITS.traceEvents}}:{available:false,reason:t.reason}});
 }
 function start(options){
  if(!options||options.enabled!==true)return Promise.resolve({status:'disabled'});if(running)return Promise.resolve({status:'already-running'});
- let resolve;const promise=new Promise(r=>resolve=r);const s={promise,resolve,onEvent:options.onEvent,active:true,ready:false,stopping:false,reason:null,listeners:[],queue:[],attempt:null,seen:[],trace:null,traceOff:false,traceDropped:0,outcomeOff:false,outcomeHits:0,outcomeWindow:-Infinity,outcomeDropped:0,ivFault:false,ivCatch:true,ivOwned:false,ivOwnedFault:false,ivRecords:{catch:null},ivOwnedRecords:[],ivUntil:0,ivNext:0,mapMode:0,mapEpoch:0,mapUntil:0,mapFault:false,throwAr:false,arUntil:0,arFault:false,throwGrade:0,throwCurve:false,throwSample:null,throwUntil:0,throwFault:false,allowedUntil:0,thread:null,matches:0,busy:false,inflight:0,retries:0,timer:null,now:()=>0};running=s;
+ let resolve;const promise=new Promise(r=>resolve=r);const s={promise,resolve,onEvent:options.onEvent,active:true,ready:false,stopping:false,reason:null,listeners:[],queue:[],attempt:null,seen:[],trace:null,traceOff:false,traceDropped:0,outcomeOff:false,outcomeHits:0,outcomeWindow:-Infinity,outcomeDropped:0,ivFault:false,ivCatch:true,ivOwned:false,ivOwnedFault:false,ivRecords:{catch:null},ivOwnedRecords:[],ivUntil:0,ivNext:0,mapMode:0,mapEpoch:0,mapUntil:0,mapFault:false,throwAr:false,arUntil:0,arFault:false,throwGrade:0,throwCurve:false,throwAlwaysHit:false,alwaysHitFault:false,throwSample:null,throwUntil:0,throwFault:false,allowedUntil:0,thread:null,matches:0,busy:false,inflight:0,retries:0,timer:null,now:()=>0};running=s;
  function finish(){for(const h of s.listeners)try{h.detach();}catch(_){}s.listeners=[];s.active=false;const result={status:s.reason?'unavailable':'cancelled'};if(s.reason)result.reason=s.reason;event(s,'finished',result);flush(s);if(running===s)running=null;s.resolve(result);}
  function poll(){s.timer=null;if(!s.active)return;
   try{
@@ -763,9 +812,9 @@ function setMapTapOptions(mode,epoch,allowed){const s=running;if(!s||!s.active||
  if(!Number.isInteger(mode)||mode<0||mode>3||!Number.isSafeInteger(epoch)){s.mapUntil=0;return false;}
  try{s.mapMode=mode;s.mapEpoch=epoch;s.mapUntil=allowed===true?s.now()+LIMITS.leaseMs:0;return allowed===true;}catch(_){s.mapUntil=0;return false;}}
 function setArThrowOptions(enabled,allowed){const s=running;if(!s||!s.active||!s.ready||s.stopping||s.arFault)return false;s.throwAr=enabled===true;s.arUntil=allowed===true?s.now()+LIMITS.leaseMs:0;return true;}
-function setThrowOptions(grade,curve,allowed){const s=running;if(!s||!s.active||!s.ready||s.stopping||s.throwFault)return false;
+function setThrowOptions(grade,curve,allowed,alwaysHit=false){const s=running;if(!s||!s.active||!s.ready||s.stopping||s.throwFault)return false;
  if(!Number.isInteger(grade)||grade<0||grade>3){s.throwSample=null;s.throwUntil=0;return false;}
- try{if(s.throwGrade!==grade||s.throwCurve!==(curve===true)||allowed!==true)s.throwSample=null;s.throwGrade=grade;s.throwCurve=curve===true;s.throwUntil=allowed===true?s.now()+LIMITS.leaseMs:0;return allowed===true;}catch(e){s.throwSample=null;s.throwUntil=0;return false;}}
+ try{if(s.throwGrade!==grade||s.throwCurve!==(curve===true)||allowed!==true)s.throwSample=null;s.throwGrade=grade;s.throwCurve=curve===true;s.throwAlwaysHit=alwaysHit===true;s.throwUntil=allowed===true?s.now()+LIMITS.leaseMs:0;return allowed===true;}catch(e){s.throwSample=null;s.throwUntil=0;return false;}}
 // Preferences are independent of Quick Catch; only a foreground lease permits writes.
 function setIvDisplayOptions(catchEnabled,ownedEnabled,allowed){const s=running;if(!s||!s.active||!s.ready||s.stopping)return false;
  if(s.ivCatch!==(catchEnabled===true)||s.ivOwned!==(ownedEnabled===true)||allowed!==true)s.ivNext=0;

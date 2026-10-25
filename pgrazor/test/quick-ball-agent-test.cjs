@@ -5,7 +5,7 @@ function fixture(fault={}) {
  const control={connect(){connected=true;},renewLease(){},active:()=>false,embedded(){},event(...e){events.push(e);},
   quickBallOutcome(o){if(fault.outcomeThrows)throw Error('toast failed');outcomes.push(o);return true;}};
  control.setBerryReady=()=>{};control.setThrowArReady=()=>{};control.setThrowReady=()=>{};control.setMapTapReady=()=>{};control.throwAllowed=()=>false;control.mapTapAllowed=()=>false;
- const originals={setTransferKeepAll(){},setTransferKeepSpecies(){},selectBerryPriority(){},setAutoBerry(){},setEncounterBerryEnabled(){},setMapTapMode(){},setThrowGrade(){},setThrowCurve(){},suspendForBackground(){foreground=false;return 'background';},disconnect(){connected=false;return 'disconnect';}};
+ const originals={setTransferKeepAll(){},setTransferKeepSpecies(){},selectBerryPriority(){},setAutoBerry(){},setEncounterBerryEnabled(){},setMapTapMode(){},setThrowGrade(){},setThrowCurve(){},setThrowAlwaysHit(){},suspendForBackground(){foreground=false;return 'background';},disconnect(){connected=false;return 'disconnect';}};
  for(const name of ['Summary','Ball']) {
   const f=features[name]={ready:false,enabled:false,configured:false,permissions:[],options:null,stopCount:0,failRevoke:false};
   control['configureQuick'+name]=v=>{f.configured=v;f.ready=false;f.enabled=false;};
@@ -22,7 +22,7 @@ function fixture(fault={}) {
   Object.defineProperty(method,'implementation',{get:()=>implementation,set(v){if(v&&fault.install===name)throw Error('bad hook');implementation=v;}});
   methods[name]=method;
   const wrapped=function(...args){return implementation?implementation.apply(this,args):method.call(this,...args);};
-  wrapped.overload=(...types)=>{assert.deepEqual(types,['setMapTapMode','setThrowGrade','selectBerryPriority','setAutoBerry'].includes(name)?['int']:name==='setTransferKeepSpecies'?['java.lang.String']:['setThrowCurve','setTransferKeepAll','setEncounterBerryEnabled'].includes(name)?['boolean']:name.includes('Enabled')?['boolean']:name.includes('Ready')?['boolean','java.lang.String']:[]);return method;};
+  wrapped.overload=(...types)=>{assert.deepEqual(types,['setMapTapMode','setThrowGrade','selectBerryPriority','setAutoBerry'].includes(name)?['int']:name==='setTransferKeepSpecies'?['java.lang.String']:['setThrowCurve','setThrowAlwaysHit','setTransferKeepAll','setEncounterBerryEnabled'].includes(name)?['boolean']:name.includes('Enabled')?['boolean']:name.includes('Ready')?['boolean','java.lang.String']:[]);return method;};
   control[name]=wrapped;
  }
  const location={};for(const name of ['getLatitude','getLongitude','getSpeed','getBearing']){methods[name]={implementation:null,call:()=>1};location[name]={overload:()=>methods[name]};}

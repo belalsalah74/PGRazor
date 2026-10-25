@@ -66,6 +66,8 @@ public final class Control {
     private static volatile boolean quickBallConfigured, quickBallReady, quickBallEnabled;
     private static volatile String quickBallStatus="";
     private static volatile boolean throwReady, throwCurve, throwAr, throwArReady;
+    // Independent of throw rating, curveball and Quick Catch. Defaults off.
+    private static volatile boolean throwAlwaysHit, throwAlwaysHitReady;
     private static volatile int throwGrade;
     // Optional IV/level overlays rendered by the ball-animation agent. Catch screen
     // defaults ON (prior behavior); owned Pokemon details defaults OFF. ivOwnedReady
@@ -470,6 +472,10 @@ public final class Control {
 
     public static void setThrowGrade(int grade) { throwGrade=grade>=0 && grade<=3 ? grade : 0; saveSettings(); event("throw-grade",""+throwGrade); }
     public static void setThrowCurve(boolean enabled) { throwCurve=enabled; saveSettings(); event("throw-curve",""+throwCurve); }
+    public static boolean throwAlwaysHitReady() { return throwReady() && throwAlwaysHitReady; }
+    public static void setThrowAlwaysHitReady(boolean ready) { throwAlwaysHitReady=ready; }
+    public static boolean throwAlwaysHit() { return throwAlwaysHit; }
+    public static void setThrowAlwaysHit(boolean enabled) { throwAlwaysHit=enabled; saveSettings(); event("throw-always-hit",""+throwAlwaysHit); }
     public static boolean throwAllowed() { return throwReady() && hostLive(); }
     /** Visible text for a natively confirmed outcome; anything else is rejected. */
     static String quickBallOutcomeText(String outcome) { return CatchOutcomeController.text(outcome); }
@@ -861,6 +867,7 @@ public final class Control {
                 // Migrate the former independent animation preference to Quick Catch.
                 quickBallEnabled=quickSummaryEnabled;
                 throwCurve=Boolean.parseBoolean(p.getProperty("curve","false"));
+                throwAlwaysHit=Boolean.parseBoolean(p.getProperty("throwAlwaysHit","false"));
                 throwAr=Boolean.parseBoolean(p.getProperty("throwAr","false"));
                 throwGrade=boundedSetting(p,"grade",3); mapTapMode=boundedSetting(p,"mapTap",3);
                 event("settings-restored","dismiss="+quickSummaryEnabled+" fastBall="+quickBallEnabled+" grade="+throwGrade+" curve="+throwCurve+" mapTap="+mapTapMode+" cameraRelative=true");
@@ -931,6 +938,7 @@ public final class Control {
         p.setProperty("ivCatch",String.valueOf(ivCatchEnabled)); p.setProperty("ivOwned",String.valueOf(ivOwnedEnabled));
         p.setProperty("autoDismiss",String.valueOf(quickSummaryEnabled)); p.setProperty("fastBall",String.valueOf(quickBallEnabled));
         p.setProperty("throwAr",String.valueOf(throwAr)); p.setProperty("curve",String.valueOf(throwCurve)); p.setProperty("grade",String.valueOf(throwGrade));
+        p.setProperty("throwAlwaysHit",String.valueOf(throwAlwaysHit));
         p.setProperty("mapTap",String.valueOf(mapTapMode));
         return p;
     }

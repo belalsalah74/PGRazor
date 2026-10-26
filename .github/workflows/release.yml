@@ -59,6 +59,7 @@ jobs:
         run: python -B tools/private_input.py
       - name: Build playable package
         env:
+          PGRAZOR_VERSION: ${{ inputs.tag }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python -B pgrazor/nonroot.py --apk pgrazor/input/game.apkm --download-runtime --camera-steering --interaction-probe --quick-ball --quick-close --google-browser-login
       - name: Produce single installable APK

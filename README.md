@@ -25,6 +25,8 @@ The Android package identity stays compatible with the game. An official-store i
 
 ## Features
 
+The Settings header shows the PGRazor version (for example, `v0.1.5`) immediately to the right of the theme button. Features listed here include unreleased changes on `main`; check your release notes for what is included in your installed APK.
+
 | Area | Controls |
 | --- | --- |
 | Map | Optional location spoofing, including with app location permission denied; camera-relative joystick, saved locations, GPX import/export and saved routes, Autowalk, tap-to-walk/teleport, nearby stop/gym/raid layers |
@@ -36,9 +38,9 @@ The Android package identity stays compatible with the game. An official-store i
 | LivePokeMap | Remote Pokémon, stops, gyms, raids, and stations; requires a LivePokeMap subscription |
 | Battles | Rocket quick/charged attacks, charged minigame and shields; raid/gym/Dynamax attacks, Max attacks and dodging |
 | Other automation | Selectable buddy berry, gift opening/sending with optional stickers, quick spin, local spawn booster |
-| Interface | Quick menu, full-screen settings, separate joystick, cooldown history, light/dark themes, settings export/import |
+| Interface | Quick menu, full-screen settings with version label, separate joystick, cooldown history, light/dark themes, settings export/import |
 
-**Quick menu:** Map, speed presets (0, 9.3, 16, 30 km/h), Autowalk, Feeds, Favorites, Teleport, and Settings. Favorites shares the map's saved places. Autowalk builds a route through up to 50 nearby loaded stops and gyms, with optional looping. Routes use direct segments between locations. Zero speed pauses travel; selecting another speed resumes the current route. Backgrounding stops routes rather than resuming movement automatically.
+**Quick menu:** Map, speed presets (0, 9.3, 16, 30 km/h), Autowalk, In-game Routes, Feeds, Favorites, Teleport, and Settings. Favorites shares the map's saved places. Autowalk builds a route through up to 50 nearby loaded stops and gyms, with optional looping. Routes use direct segments between locations. Zero speed pauses travel; selecting another speed resumes the current route. Backgrounding stops routes rather than resuming movement automatically.
 
 **Transfer protection:** Open **Transfer on catch > Custom Keep List** to keep selected species (including all forms) from manual and VGP catches. Enable the transfer overlay for a quick **Keep All** toggle. Turning Keep All off restores your existing rules; it does not enable auto-transfer if its main setting is off. The list and toggle state are saved across restarts.
 

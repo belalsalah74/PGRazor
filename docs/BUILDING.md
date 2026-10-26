@@ -1,5 +1,7 @@
 # Building PGRazor
 
+Local builds read the Settings header version from `pgrazor/VERSION`. Release builds override it with `PGRAZOR_VERSION` from the workflow release tag. This is the PGRazor version, independent of the base game version.
+
 ## Requirements
 
 The APK packaging toolchain currently supports Windows. Install Python 3.12+, Node.js 22+, JDK 17+, and the Android SDK. The Python build tools use the standard library.
@@ -15,7 +17,7 @@ python -B tools/check.py
 
 ## Local playable build
 
-Supply your own unmodified, Niantic-signed ARM64 game APK/APKM. The supported input is Pokémon GO 0.433.1, version code 2026101502. The release workflow additionally pins its SHA-256:
+Supply your own unmodified, Niantic-signed ARM64 game APK/APKM. The supported input is PokÃ©mon GO 0.433.1, version code 2026101502. The release workflow additionally pins its SHA-256:
 
 ```text
 aabe3f866bb20b008d10646d35615fe8845ad0164ddc5ac7984e1a5565836e53
@@ -28,7 +30,7 @@ python -B pgrazor/nonroot.py --apk pgrazor/input/game.apkm --download-runtime --
 python -B pgrazor/release_apk.py --run pgrazor/build/nonroot/RUN-ID --output pgrazor/build/release
 ```
 
-Use the run directory printed by the first command. The second command merges the library-only ARM64 configuration split, removes split-install requirements, labels the installed application Pokémon GO (the in-game menu remains PGRazor), aligns and signs **PGRazor.apk**, and writes checksums. It rejects resource/code splits rather than silently dropping them. No command installs anything on a phone.
+Use the run directory printed by the first command. The second command merges the library-only ARM64 configuration split, removes split-install requirements, labels the installed application PokÃ©mon GO (the in-game menu remains PGRazor), aligns and signs **PGRazor.apk**, and writes checksums. It rejects resource/code splits rather than silently dropping them. No command installs anything on a phone.
 
 Single-APK packaging is new and still needs a disconnected-phone install/launch check. Existing split builds remain available in the run directory as a rollback option. Preserve a tested installation until the new candidate has been checked.
 
@@ -64,7 +66,7 @@ Configure these Actions secrets:
 
 For a private GitHub input asset, use its `https://api.github.com/repos/OWNER/REPO/releases/assets/ID` URL. The workflow supplies its scoped token; authorization is removed when GitHub redirects to the signed download host.
 
-Run **Actions → Playable APK release → Run workflow**, enter a version tag such as `v0.1.0`, and leave `publish` off for a candidate. Download **PGRazor-apk** from the completed run and extract **PGRazor.apk**. Repository read access is required to download private [workflow artifacts](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts).
+Run **Actions â†’ Playable APK release â†’ Run workflow**, enter a version tag such as `v0.1.0`, and leave `publish` off for a candidate. Download **PGRazor-apk** from the completed run and extract **PGRazor.apk**. Repository read access is required to download private [workflow artifacts](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts).
 
 After device testing, run with `publish` enabled to create a full release containing the APK, checksums, and build information. An existing tag/release is not overwritten. The workflow is manually triggered, does not run on pull requests, and requires a versioned release-notes file at `docs/releases/TAG.md`. The shared `docs/releases/footer.md` is appended automatically, including the optional Ko-fi support link. No secrets or game files are uploaded by source CI.
 
@@ -72,11 +74,11 @@ The published release contains the installable APK, checksum, build information,
 
 ## Discord release announcements
 
-Create an incoming webhook in Discord channel `1562582290536726598` under **Edit Channel → Integrations → Webhooks**. Save its URL as the repository Actions secret **DISCORD_RELEASE_WEBHOOK**. Do not commit the URL.
+Create an incoming webhook in Discord channel `1562582290536726598` under **Edit Channel â†’ Integrations â†’ Webhooks**. Save its URL as the repository Actions secret **DISCORD_RELEASE_WEBHOOK**. Do not commit the URL.
 
 The **Discord release announcement** workflow posts published releases (including labeled prereleases) with release notes, a GitHub link, an APK link when present, and the optional Ko-fi support link. It verifies the webhook's channel before sending. Drafts are not announced. The APK release workflow calls it directly because releases created with `GITHUB_TOKEN` do not trigger another release-event workflow.
 
-To ping a release subscriber role, set the repository Actions **variable** `DISCORD_RELEASE_ROLE_ID` to its numeric role ID (Discord Developer Mode → right-click the role → Copy Role ID). Ensure Discord allows the webhook to mention that role. Only this role is allowed to ping; other roles, users, and everyone mentions remain disabled. Leave the variable unset to send without a ping. This also applies to prereleases and manual announcements.
+To ping a release subscriber role, set the repository Actions **variable** `DISCORD_RELEASE_ROLE_ID` to its numeric role ID (Discord Developer Mode â†’ right-click the role â†’ Copy Role ID). Ensure Discord allows the webhook to mention that role. Only this role is allowed to ping; other roles, users, and everyone mentions remain disabled. Leave the variable unset to send without a ping. This also applies to prereleases and manual announcements.
 
 Without the secret, the announcement step logs a warning and sends nothing. To announce an existing release after setup, manually run **Discord release announcement** with its tag. Manual runs and reruns can post another announcement, so check the channel before retrying. This posts a channel message; it does not crosspost to channel followers.
 

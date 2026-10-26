@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Show the PGRazor version beside the theme button in Settings.
+
 - Automatically dismiss Adventure Sync prompts when location spoofing is enabled and Android location permission is denied.
 
 - Add experimental in-game Route walking from the quick menu: discover nearby Routes, choose the shortest total walk, follow the recorded path, and confirm rewards before continuing, with a configurable completion limit and a draggable icon for live path details.

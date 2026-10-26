@@ -135,6 +135,12 @@ final class SettingsPanel {
         header.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1f));
         themeIcon = new ThemeIcon(activity); header.addView(themeIcon,new LinearLayout.LayoutParams(dp(48),dp(48)));
         themeIcon.setOnClickListener(v -> {Control.setDarkTheme(!Control.darkTheme());host.applyTheme();});
+        TextView version = text(BuildVersion.NAME, 12, muted());
+        version.setSingleLine(true); version.setGravity(Gravity.CENTER_VERTICAL);
+        version.setPadding(dp(4), 0, dp(8), 0);
+        version.setContentDescription("PGRazor version " + BuildVersion.NAME);
+        captions.add(version);
+        header.addView(version, new LinearLayout.LayoutParams(-2, dp(48)));
         closeIcon = new CloseIcon(activity); header.addView(closeIcon, new LinearLayout.LayoutParams(dp(48), dp(48)));
         panel.addView(header);
         View gap = new View(activity); panel.addView(gap, new LinearLayout.LayoutParams(-1, dp(8)));

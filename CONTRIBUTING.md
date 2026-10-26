@@ -14,6 +14,8 @@ APK publishing is a maintainer operation, not a pull-request workflow. See [BUIL
 
 ## Adding or separating a feature
 
+Keep `README.md` up to date with every feature addition, change, or removal in the same change. Update the feature table and relevant usage instructions, and distinguish unreleased behavior from published releases.
+
 - Start with the [architecture map](docs/ARCHITECTURE.md) and [maintainability guide](docs/MAINTAINABILITY.md). Keep policy, UI, and native contracts separate where existing boundaries allow it.
 - Give each runtime module explicit dependencies and ownership of its timers, hooks, and retained objects. Construction must not initialize game classes; installation belongs on the required thread.
 - Register composed scripts in `pgrazor/runtime/bundles.json`. Keep deployed asset names stable and use the shared manifest in tests.

@@ -15,6 +15,26 @@ host.tick();client.tick();assert.equal(client.control.active(),true);
 storage.events={session:'wrong',seq:2,calls:[['setVgpReady',[false]]]};host.tick();assert.equal(calls.length,1);
 storage.events={session:'one',seq:2,calls:[['unapproved',[]]]};host.tick();client.tick();assert.equal(client.control.active(),false);assert.match(storage.state.fault,/Invalid/);
 console.log('Translated mailbox tests passed');
+// Route commands remain data until the native foreground lease is fresh;
+// completion snapshots must be delivered once despite host polling retries.
+{
+ let clock=1000;const data={},received=[];
+ const channel={read:n=>data[n],write:(n,v)=>data[n]=JSON.parse(JSON.stringify(v))};
+ const api=Object.fromEntries(bridge.readers.map(n=>[n,()=>true]));
+ for(const n of bridge.actions)api[n]=()=>{};
+ for(const n of ['takeCameraSampleRequest','takeInteractionStopRequest','takeInteractionTraceRequest'])api[n]=()=>false;
+ api.gameRoutesCommand=()=>JSON.stringify({seq:7,action:'complete',id:'route-a'});
+ api.setGameRoutesSnapshot=value=>received.push(value);
+ const h=bridge.host({io:channel,control:api,session:'routes',now:()=>clock});
+ const c=bridge.client({io:channel,session:'routes',now:()=>clock});
+ assert.equal(c.control.gameRoutesAllowed(),false);
+ h.tick();c.tick();assert.equal(c.control.gameRoutesAllowed(),true);
+ assert.equal(JSON.parse(c.control.gameRoutesCommand()).seq,7);
+ c.control.setGameRoutesSnapshot('{"current":{"id":"route-a","acquiredReward":true}}');
+ c.tick();h.tick();h.tick();assert.equal(received.length,1);
+ clock+=501;assert.equal(c.control.gameRoutesAllowed(),false);
+ assert.throws(()=>c.control.gameRoutesCommand());
+}
 // Guest ELF executable validation must reject data pages and altered mappings.
 const bytes=Buffer.alloc(4096);bytes.writeUInt32LE(0x464c457f);bytes[4]=2;bytes[5]=1;bytes.writeUInt16LE(183,18);bytes.writeBigUInt64LE(64n,32);bytes.writeUInt16LE(56,54);bytes.writeUInt16LE(1,56);bytes.writeUInt32LE(1,64);bytes.writeUInt32LE(5,68);bytes.writeBigUInt64LE(512n,80);bytes.writeBigUInt64LE(256n,104);
 class Pointer {constructor(n){this.n=n;}add(n){return new Pointer(this.n+n);}compare(p){return Math.sign(this.n-p.n);}toString(){return String(this.n);}readU8(){return bytes.readUInt8(this.n);}readU16(){return bytes.readUInt16LE(this.n);}readU32(){return bytes.readUInt32LE(this.n);}readU64(){return {toNumber:()=>Number(bytes.readBigUInt64LE(this.n))};}}

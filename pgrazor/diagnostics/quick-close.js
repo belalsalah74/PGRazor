@@ -1051,7 +1051,25 @@ function install(s,p){
 
  function unity(tid){return s.thread!==null&&s.matches>=3&&tid===s.thread&&!api.thread_current().isNull();}
 
+ // Optional native Routes module. Isolated: any failure here must not disturb
+ // the catch/transfer/spin pipeline above. It reuses the host's verified
+ // Unity-thread tick and GC-root helpers and owns only Route service objects.
+ try{
+  if(globalThis.PGRazorRoutes&&typeof globalThis.PGRazorRoutes.createController==='function'){
+   s.routes=globalThis.PGRazorRoutes.createController({api,module:p.module,Memory,ptr,Interceptor,NativeFunction,Process,executable,
+    event:(kind,fields)=>event(s,kind,fields),now:()=>s.now(),
+    hold,target,freeHandle,invoke,exact,readPtr,unity,
+    addListener:l=>s.listeners.push(l),isStopping:()=>s.stopping});
+   event(s,'routes-module-installed',{version:s.routes.version});
+  }else event(s,'routes-module-absent',{});
+ }catch(e){s.routes=null;event(s,'routes-module-unavailable',{reason:String(e)});}
+
  function releaseRecord(r){restoreCatchCanvas(r);for(const k of['gui','state','response','proto','dismissed','data','pokemon','service','transferBag','transferPromise','vgpBag','vgpGm']){if(r[k]){try{freeHandle(r[k]);}catch(e){fault(s,e);}r[k]=null;}}}
+
+ try { s.adventureSync=PGRazorAdventureSync.create({api,module:p.module,Memory,ptr,Interceptor,
+  now:()=>s.now(),hold,target,freeHandle,invoke,exact,unity,
+  event:(kind,fields)=>event(s,kind,fields),addListener:l=>s.listeners.push(l)}); }
+ catch(e){event(s,'adventure-sync-native-unavailable',{reason:String(e)});}
 
  // A confirmed post-catch details panel may stay invisible while normal opening,
  // transfer and dismissal run. Only the canvas changes; transitions/state stay native.
@@ -1170,6 +1188,9 @@ function install(s,p){
    spinTick(now,tid);
 
    pruneSpinCameras(now);
+
+   if(s.adventureSync)try{s.adventureSync.tick(now,tid);}catch(e){event(s,"adventure-sync-native-error",{reason:String(e)});}
+   if(s.routes)try{s.routes.tick(now,tid);}catch(e){event(s,'routes-tick-error',{reason:String(e)});}
 
    for(const r of s.records)if(r.canvasHidden&&!catchCanvasAllowed(r))restoreCatchCanvas(r);
    prune(now);
@@ -1807,7 +1828,7 @@ function start(options){
 
  if(!options||options.enabled!==true)return Promise.resolve({status:'disabled'});if(running)return Promise.resolve({status:'already-running'});
 
- let resolve;const promise=new Promise(r=>resolve=r);const s={promise,resolve,onEvent:options.onEvent,active:true,ready:false,stopping:false,reason:null,listeners:[],queue:[],records:[],pendingDetails:null,transferEnabled:false,protect:63,dismissEnabled:true,transferSeen:new Set(),transferPending:new Map(),itemRules:{},itemConfig:'',itemEnabled:false,itemLease:0,itemEpoch:0,spinRecord:null,spinEnabled:false,spinAllowedUntil:0,spinEpoch:0,ownedHandles:new Set(),openerDepth:0,invoking:false,invokingGui:null,allowedUntil:0,epoch:0,thread:null,matches:0,busy:false,retries:0,timer:null,clockReady:false,cleanupReported:false,now:()=>0};running=s;
+ let resolve;const promise=new Promise(r=>resolve=r);const s={promise,resolve,onEvent:options.onEvent,active:true,ready:false,stopping:false,reason:null,listeners:[],queue:[],records:[],pendingDetails:null,transferEnabled:false,protect:63,dismissEnabled:true,transferSeen:new Set(),transferPending:new Map(),itemRules:{},itemConfig:'',itemEnabled:false,itemLease:0,itemEpoch:0,spinRecord:null,spinEnabled:false,spinAllowedUntil:0,spinEpoch:0,ownedHandles:new Set(),openerDepth:0,invoking:false,invokingGui:null,allowedUntil:0,epoch:0,thread:null,matches:0,busy:false,retries:0,timer:null,clockReady:false,cleanupReported:false,routes:null,now:()=>0};running=s;
 
  function finish(){for(const h of s.listeners)try{h.detach();}catch(_){}s.listeners=[];s.active=false;const result={status:s.reason?'unavailable':'cancelled'};if(s.reason)result.reason=s.reason;event(s,'finished',result);flush(s);if(running===s)running=null;s.resolve(result);}
 
@@ -1869,6 +1890,13 @@ function setItemOptions(enabled,rules,allowed){const s=running;if(!s||!s.ready||
 
 }
 
+// Bridge entry for the native Routes module. allowed is a fresh foreground lease
+// for an open Routes modal or active walking; commandJson is the JSON command.
+// setRoutesOptions(false,...) cannot execute new actions; roots clean up on tick.
+function setAdventureSyncAllowed(allowed){const s=running;if(s&&s.active&&!s.stopping&&s.adventureSync)s.adventureSync.setAllowed(allowed===true);}
+function setRoutesOptions(allowed,commandJson){const s=running;if(!s||!s.ready||s.stopping||!s.routes)return false;
+ try{return s.routes.setOptions(allowed===true,commandJson);}catch(e){event(s,'routes-options-error',{reason:String(e)});return false;}}
+
 function stop(){const s=running;if(!s)return Promise.resolve({status:'idle'});s.allowedUntil=0;s.stopping=true;return s.promise;}
 
 function setTransferOptions(enabled,protect,dismiss,keepSpecies='',keepAll=false){const s=running;if(!s||!s.active||s.stopping)return false;
@@ -1877,6 +1905,6 @@ function setTransferOptions(enabled,protect,dismiss,keepSpecies='',keepAll=false
  if(s.transferEnabled!==next||s.protect!==mask||s.keepConfig!==config||s.keepAll!==keep)s.epoch++;
  s.transferEnabled=next;s.protect=mask;s.keepSpecies=ids;s.keepConfig=config;s.keepAll=keep;s.dismissEnabled=dismiss===true;return ids!==null;}
 
-const api=Object.freeze({start,setIncubatorOptions,setMapPoiAllowed,setVgpOptions,setVgpManualReady,setAllowed,setSpinAllowed,setTransferOptions,setItemOptions,setRocketOptions,setBattleOptions,setBerryOptions,setBerryImpactReady,setSpawnOptions,setGiftOptions,setBuddyOptions,transferDecision,transferKeepSet,transferKeepReason,stop});root.PGRazorQuickClose=api;return api;
+const api=Object.freeze({start,setIncubatorOptions,setMapPoiAllowed,setVgpOptions,setVgpManualReady,setAllowed,setSpinAllowed,setTransferOptions,setItemOptions,setRocketOptions,setBattleOptions,setBerryOptions,setBerryImpactReady,setSpawnOptions,setGiftOptions,setBuddyOptions,setRoutesOptions,setAdventureSyncAllowed,transferDecision,transferKeepSet,transferKeepReason,stop});root.PGRazorQuickClose=api;return api;
 
 })(globalThis);

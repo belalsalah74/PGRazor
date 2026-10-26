@@ -219,7 +219,10 @@ function scheduleInteraction() {
 }
 function summaryUnavailable(reason) {
     if (disposed || !control) return;
-    try { Java.performNow(() => control.setQuickSummaryReady(false, 'Unavailable: '+String(reason).slice(0,180))); }
+    try { Java.performNow(() => {
+        control.setQuickSummaryReady(false, 'Unavailable: '+String(reason).slice(0,180));
+        if(control.setGameRoutesReady)control.setGameRoutesReady(false,'Route runtime unavailable');
+    }); }
     catch (error) { bootLog('quick-summary-status-error: '+error); }
 }
 function restoreSummaryLifecycleHooks() {
@@ -278,6 +281,8 @@ function resetSummaryPolicy() {
     if(quickSummary.setBuddyOptions)quickSummary.setBuddyOptions(0,false);
     if(quickSummary.setIncubatorOptions)quickSummary.setIncubatorOptions(false,false,false);
     if(quickSummary.setGiftOptions)quickSummary.setGiftOptions(0,false);
+    if(quickSummary.setAdventureSyncAllowed)quickSummary.setAdventureSyncAllowed(false);
+    if(quickSummary.setRoutesOptions)quickSummary.setRoutesOptions(false,"");
     if(quickSummary.setBerryImpactReady&&(quickBallNativeReady||bootParameters.quickBall!==true))quickSummary.setBerryImpactReady();
     if(quickSummary.setBerryOptions)quickSummary.setBerryOptions(0,false);
     if(quickSummary.setSpawnOptions)quickSummary.setSpawnOptions(false,false);
@@ -350,7 +355,7 @@ function scheduleQuickSummary() {
             const result=quickSummary.start({enabled:true,onEvent(event) {
                 if (disposed || quickSummaryFailed) return;
                 try { Java.performNow(()=>{
-                    control.event(bootParameters.quickClose===true?'quick-close':'quick-summary',JSON.stringify(event));
+                    if(event.kind!=='routes-snapshot')control.event(bootParameters.quickClose===true?'quick-close':'quick-summary',JSON.stringify(event));
                     if(event.kind==='cooldown-action')control.cooldownAction(event.action);
                     if(event.kind==='cooldown-encounter')control.setCooldownEncounter(event.source);
                     if (event.kind==='metadata-ready') quickSummaryNativeReady=true;
@@ -365,6 +370,9 @@ function scheduleQuickSummary() {
                     // Gift readiness must reach Control before the heartbeat can grant its lease.
                     if(event.kind==='encounter-berry')control.setEncounterBerry(!!event.active,!!event.busy);
                     if(event.kind==='map-pois')control.setMapPoiSnapshot(JSON.stringify(event));
+                    if(event.kind==='routes-ready')control.setGameRoutesReady(!!event.available,String(event.reason||''));
+                    if(event.kind==='routes-snapshot')control.setGameRoutesSnapshot(JSON.stringify(event));
+                    if(event.kind==='routes-action')control.gameRoutesAction(JSON.stringify(event));
                     if(event.kind==='vgp-ready')control.setVgpReady(!!event.available,event.available?'Ready':'Unavailable: '+event.reason);
                     if(event.kind==='vgp-marker')control.setVgpTarget(!!event.visible,event.x||0,event.y||0,event.action==='spin');
                     if(event.kind==='vgp-status')control.setVgpStatus(event.message);
@@ -550,6 +558,8 @@ function heartbeat() {
                 if(quickSummary.setRocketOptions)quickSummary.setRocketOptions(control.rocketOptions(),control.rocketAllowed());
                 if(quickSummary.setBattleOptions)quickSummary.setBattleOptions(control.battleOptions(),control.battlesAllowed());
                 if(quickSummary.setMapPoiAllowed)quickSummary.setMapPoiAllowed(control.mapPoiAllowed());
+                if(quickSummary.setAdventureSyncAllowed)quickSummary.setAdventureSyncAllowed(control.adventureSyncDismissAllowed());
+                if(quickSummary.setRoutesOptions)quickSummary.setRoutesOptions(control.gameRoutesAllowed(),String(control.gameRoutesCommand()));
                 if(quickSummary.setVgpManualReady&&(quickBallNativeReady||bootParameters.quickBall!==true))quickSummary.setVgpManualReady();
                 if(quickSummary.setVgpOptions)quickSummary.setVgpOptions(control.vgpEnabled()?control.vgpOptions():0,control.vgpAllowed(),control.latitude(),control.longitude(),control.vgpMapVisible());
                 if(quickSummary.setBuddyOptions)quickSummary.setBuddyOptions(control.buddyBerry(),control.buddyAllowed());

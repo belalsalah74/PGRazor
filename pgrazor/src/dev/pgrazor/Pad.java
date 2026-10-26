@@ -32,6 +32,8 @@ public final class Pad {
     // Draggable, position-persisting Keep All / transfer-rules overlay button.
     private TransferToggle transferToggle;
     private OverlayDrag transferDrag;
+    private GameRoutesOverlay gameRoutesOverlay;
+    private OverlayDrag gameRoutesDrag;
 
     private int dp(float x){return SettingsUi.dp(activity,x);}
     private int ink(){return SettingsUi.ink();}
@@ -52,6 +54,7 @@ public final class Pad {
         if(encounterBerry!=null)encounterBerry.invalidate();
         if(cooldownTimer!=null)cooldownTimer.setBackground(rounded(Control.darkTheme()?0xcc141b25:0xccf1f5f8,12));
         if(transferToggle!=null)transferToggle.invalidate();
+        if(gameRoutesOverlay!=null)gameRoutesOverlay.invalidate();
         if(quickMenu!=null)quickMenu.applyTheme();
     }
     private void draggable(View handle,View target,boolean clickable){
@@ -115,6 +118,10 @@ public final class Pad {
         // Compact Keep All / transfer-rules overlay; tap toggles Keep All, drag repositions (persists transfer.fx/fy).
         transferToggle=new TransferToggle(host);FrameLayout.LayoutParams transferLayout=new FrameLayout.LayoutParams(dp(54),dp(54),Gravity.TOP|Gravity.LEFT);transferLayout.leftMargin=dp(12);transferLayout.topMargin=dp(300);parent.addView(transferToggle,transferLayout);transferToggle.setOnClickListener(v->{Control.setTransferKeepAll(!Control.transferKeepAll());refresh();});
         transferDrag=OverlayDrag.attach(parent,transferToggle,"transfer");transferToggle.setVisibility(View.GONE);
+        gameRoutesOverlay=new GameRoutesOverlay(activity);
+        FrameLayout.LayoutParams routesLayout=new FrameLayout.LayoutParams(dp(48),dp(48),Gravity.TOP|Gravity.RIGHT);
+        routesLayout.rightMargin=dp(14);routesLayout.topMargin=dp(100);parent.addView(gameRoutesOverlay,routesLayout);
+        gameRoutesOverlay.setVisibility(View.GONE);gameRoutesDrag=OverlayDrag.attach(parent,gameRoutesOverlay,"game-routes");
         launcher=new RazorIcon(host);FrameLayout.LayoutParams iconLayout=new FrameLayout.LayoutParams(dp(48),dp(48),Gravity.TOP|Gravity.LEFT);iconLayout.leftMargin=dp(12);iconLayout.topMargin=dp(100);parent.addView(launcher,iconLayout);
         launcher.setContentDescription("Open PGRazor quick menu. Drag to reposition.");
         // The R launcher now toggles the compact quick menu; Settings there opens this panel full screen.
@@ -122,6 +129,7 @@ public final class Pad {
             public void onMap(){openWorldMap();}
             public double onCycleWalkSpeed(){double s=Control.cycleWalkSpeed();refresh();return s;}
             public void onAutoWalk(){stick.release(true);AutoWalkDialog.show(activity);}
+            public void onGameRoutes(){stick.release(true);GameRoutesDialog.show(activity);}
             public void onFeeds(){stick.release(true);LiveFeedDialog.show(activity);}
             public void onFavorites(){QuickLocationDialogs.showFavorites(activity,Pad.this::quickTeleport);}
             public void onTeleport(){QuickLocationDialogs.showTeleport(activity,Pad.this::quickTeleport);}
@@ -198,7 +206,7 @@ public final class Pad {
         if(launcher==null||launcher.getWidth()==0||parent.getWidth()==0)return;
         int percent=Control.uiScalePercent();if(appliedUiScale==percent)return;
         appliedUiScale=percent;float scale=percent/100f;
-        for(View view:new View[]{launcher,joystickOverlay,cooldownTimer,vgpToggle,vgpActivity,vgpMarker,transferToggle}){
+        for(View view:new View[]{launcher,joystickOverlay,cooldownTimer,vgpToggle,vgpActivity,vgpMarker,transferToggle,gameRoutesOverlay}){
             if(view==null)continue;
             float fx=view.getX()/Math.max(1,parent.getWidth()-OverlayDrag.visualWidth(view));
             float fy=view.getY()/Math.max(1,parent.getHeight()-OverlayDrag.visualHeight(view));
@@ -208,6 +216,7 @@ public final class Pad {
         }
         if(cooldownDrag!=null)cooldownDrag.refreshBounds();if(vgpDrag!=null)vgpDrag.refreshBounds();
         if(transferDrag!=null)transferDrag.refreshBounds();
+        if(gameRoutesDrag!=null)gameRoutesDrag.refreshBounds();
         if(encounterBerry!=null)encounterBerry.applyUiScale(scale);
         if(quickMenu!=null)quickMenu.applyScale(scale);
     }
@@ -220,6 +229,9 @@ public final class Pad {
         if(vgpMarker!=null){boolean show=Control.vgpTargetVisible()&&!settings.isVisible();vgpMarker.setVisibility(show?View.VISIBLE:View.GONE);if(show){vgpMarker.setX(Control.vgpTargetX()*parent.getWidth()-dp(19)*vgpMarker.getScaleX());vgpMarker.setY(Control.vgpTargetY()*parent.getHeight()-dp(36)-dp(46)*vgpMarker.getScaleY());vgpMarker.invalidate();}}
         if(transferToggle!=null){transferToggle.setVisibility(Control.transferOverlayVisible()&&!settings.isVisible()&&!(quickMenu!=null&&quickMenu.isShowing())?View.VISIBLE:View.GONE);transferToggle.setContentDescription(transferToggleDescription());transferToggle.invalidate();}
 
+        String routeReward=Control.takeGameRoutesRewardNotice();
+        if(!routeReward.isEmpty())Toast.makeText(activity,routeReward,Toast.LENGTH_LONG).show();
+        if(gameRoutesOverlay!=null)gameRoutesOverlay.refresh(!settings.isVisible()&&!(quickMenu!=null&&quickMenu.isShowing()));
         if(cooldownTimer!=null){cooldownTimer.setVisibility(Control.cooldownOverlay()?View.VISIBLE:View.GONE);cooldownTimer.setText("☰  "+Cooldown.label());cooldownTimer.setTextColor(Cooldown.remaining()>0?Color.rgb(255,186,95):accent());}
         if (lastEnabled != Control.engine.enabled) { lastEnabled = Control.engine.enabled; stick.invalidate(); }
         if(encounterBerry!=null)encounterBerry.refresh();
@@ -235,6 +247,7 @@ public final class Pad {
             boolean wasWalking = Control.engine.walking;
             MotionEngine.RouteProgress before=Control.engine.routeProgress();
             Control.engine.step((now-lastTick)/1000.0); lastTick = now;
+            Control.tickGameRoutes();
             MotionEngine.RouteProgress after=Control.engine.routeProgress();
             if (before.total>1 && after.total==before.total && after.visited>before.visited)
                 Control.event("route-progress", "visited=" + after.visited + "/" + after.total);
@@ -344,9 +357,9 @@ public final class Pad {
         if (closed) return;
         closed = true;if(stopRouteDialog!=null)stopRouteDialog.dismiss(); stick.release(true); Control.suspendForBackground(); handler.removeCallbacks(tick);
         if(quickMenu!=null){quickMenu.destroy();quickMenu=null;}
-        if(cooldownDrag!=null){cooldownDrag.detach();cooldownDrag=null;}if(vgpDrag!=null){vgpDrag.detach();vgpDrag=null;}if(transferDrag!=null){transferDrag.detach();transferDrag=null;}
+        if(cooldownDrag!=null){cooldownDrag.detach();cooldownDrag=null;}if(vgpDrag!=null){vgpDrag.detach();vgpDrag=null;}if(transferDrag!=null){transferDrag.detach();transferDrag=null;}if(gameRoutesDrag!=null){gameRoutesDrag.detach();gameRoutesDrag=null;}
         settings.close();
-        parent.removeView(settings.view());parent.removeView(launcher);parent.removeView(joystickOverlay);if(encounterBerry!=null){encounterBerry.close();parent.removeView(encounterBerry);}if(cooldownTimer!=null)parent.removeView(cooldownTimer);if(vgpToggle!=null)parent.removeView(vgpToggle);if(vgpActivity!=null)parent.removeView(vgpActivity);if(vgpMarker!=null)parent.removeView(vgpMarker);if(transferToggle!=null)parent.removeView(transferToggle);
+        parent.removeView(settings.view());parent.removeView(launcher);parent.removeView(joystickOverlay);if(encounterBerry!=null){encounterBerry.close();parent.removeView(encounterBerry);}if(cooldownTimer!=null)parent.removeView(cooldownTimer);if(vgpToggle!=null)parent.removeView(vgpToggle);if(vgpActivity!=null)parent.removeView(vgpActivity);if(vgpMarker!=null)parent.removeView(vgpMarker);if(transferToggle!=null)parent.removeView(transferToggle);if(gameRoutesOverlay!=null){gameRoutesOverlay.close();parent.removeView(gameRoutesOverlay);}
         settings.view().setOnApplyWindowInsetsListener(null);
         Control.event("panel-closed", "Runtime suspended on activity change; desiredEnabled=" + Control.desiredEnabled() + "; movement stopped");
     }

@@ -55,6 +55,14 @@ The location module's `create({Java, control, isDisposed, bootLog})` is inert. B
 
 Keep `Control` public static methods stable when extracting implementation classes: they are the bridge API used by the agent. Persisted keys, settings/state paths, signing identity, and runtime asset paths also require deliberate migrations.
 
+## In-game Routes
+
+`GameRoutesController` owns discovery selection, bounded runs and movement ownership. `GameRoutesDialog` is the quick-menu entry. This is separate from GPX and Pokestop Autowalk: each native Route has its own start, progress and reward lifecycle. A movement endpoint alone does not count as completion.
+
+`runtime/features/routes.js` owns validated service capture, rooted Route definitions and one-shot native commands. `quick-close.js` supplies the verified Unity-thread tick and shared cleanup. Commands remain in the Java mailbox until acknowledged; revocation cancels pending native commands without replay. The translated bridge carries the same contract on MuMu. Unknown/stale state, game pauses, backgrounding and manual movement stop automation. Reward completion is latched from the matching native server-response callback and paired with the completion command sequence, because the game clears its current Route before periodic polling can observe the reward flag. Only the reward and rating screens opened by that automation are dismissed; no rating is submitted.
+
+Route tracking also queries Unity's OS location-service availability. While a fresh synthetic-location lease is active, only this nested Route tracking query recognizes the synthetic provider. Android grants are unchanged; network, breadcrumb freshness and path checks remain active. The native icall is resolved by its exact name and validated against `libunity.so`; managed wrapper instruction bytes must not be used to validate that separate native function.
+
 ## Java ownership
 
 `VgpController` owns runtime guard/status/marker state and notification dispatch. `Control` retains the public bridge methods and persisted preferences. Cooldown reads occur before the VGP lock; persistence and event logging occur after it. `CatchOutcomeController` owns toast tokens under its lock and toast instances on the main thread, with a second permission check before display.

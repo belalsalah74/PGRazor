@@ -175,6 +175,14 @@
       "sha256": "61d2aa71303427470b3da83cec836e2d805c9d7dc9adb78a313b44be7b301ae5",
       "upstream_blob_sha": "70ad98e60cbb284b1c41d6b7af7020b204661551",
       "bytes": 51721
+    },
+    {
+      "source": "Images/Route Maker/route_icon_gradient.png",
+      "name": "routes.png",
+      "purpose": "Active in-game Route overlay; transparent, aspect-fit, unchanged artwork.",
+      "sha256": "b2da600df5a2a8ddb3a0b235cfc7bd56da739f07ae30282cc558a1bf16836d52",
+      "upstream_blob_sha": "4e25715524b170d5d02f7c9d9b93cd3ff2ca4ab6",
+      "bytes": 3442
     }
   ],
   "species_names": {

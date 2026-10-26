@@ -55,6 +55,32 @@ globalThis.PGRazorLocation = Object.freeze({create({Java, control, isDisposed, b
             control.event('location-permission-error', String(error));
         }
     }
+    // Use the game's own negative/acknowledge actions; never grant a permission or enable sync.
+    function installAdventureSyncDismissal() {
+        for (const [name, action] of [
+            ['InitialDialog', 'onClickCancel'],
+            ['ManualPermissionDialog', 'onClickCancel'],
+            ['FinalDialog', 'onClickClose']
+        ]) {
+            try {
+                const klass = Java.use('com.nianticlabs.background.configuration.' + name);
+                const create = klass.onCreate.overload('android.os.Bundle');
+                const dismiss = klass[action].overload('android.view.View');
+                create.implementation = function (state) {
+                    create.call(this, state);
+                    try {
+                        if (isDisposed() || !control.desiredEnabled() || this.isFinishing()) return;
+                        // These OS checks are intentionally NOT the game's synthetic permission gates.
+                        if (this.checkSelfPermission('android.permission.ACCESS_FINE_LOCATION') === 0 ||
+                            this.checkSelfPermission('android.permission.ACCESS_COARSE_LOCATION') === 0) return;
+                        dismiss.call(this, null);
+                        control.event('adventure-sync-dismissed', name + ': app location permission denied');
+                    } catch (error) { control.event('adventure-sync-dismiss-error', String(error)); }
+                };
+                permissionHooks.push(create);
+            } catch (error) { control.event('adventure-sync-hook-unavailable', name + ': ' + error); }
+        }
+    }
     function installLocationDelivery() {
         control.event('location-delivery', 'Initializing game location adapter on main thread');
         const Manager = Java.use('com.nianticlabs.nia.location.NianticLocationManager');
@@ -194,5 +220,5 @@ globalThis.PGRazorLocation = Object.freeze({create({Java, control, isDisposed, b
         for (const method of permissionHooks) method.implementation = null;
         permissionHooks.length = 0;
     }
-    return {installPermissions: installLocationPermissionGates, installDelivery: installLocationDelivery, stop};
+    return {installPermissions() { installLocationPermissionGates(); installAdventureSyncDismissal(); }, installDelivery: installLocationDelivery, stop};
 }});

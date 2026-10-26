@@ -19,6 +19,8 @@
     "runtime/features/items.js",
     "runtime/features/nativePromise.js",
     "runtime/features/vgp.js",
+    "runtime/features/routes.js",
+    "runtime/features/adventureSync.js",
     "diagnostics/quick-close.js"
   ]
 }

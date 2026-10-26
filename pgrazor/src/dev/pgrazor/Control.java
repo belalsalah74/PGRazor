@@ -20,6 +20,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Module interface shared by the standalone preview and an instrumented host. */
 public final class Control {
+    private static Application hostApplication;
+    public static boolean adventureSyncDismissAllowed() {
+        Application app=hostApplication;
+        return app!=null && hostLive() && desiredEnabled
+            && app.checkSelfPermission("android.permission.ACCESS_FINE_LOCATION")!=0
+            && app.checkSelfPermission("android.permission.ACCESS_COARSE_LOCATION")!=0;
+    }
     private static volatile boolean mapPoiOpen,autoWalkPlanning;
     private static volatile String mapPoiSnapshot="";
     private static volatile long mapPoiAt;
@@ -29,6 +36,37 @@ public final class Control {
     public static void setMapPoiSnapshot(String value){if((mapPoiOpen||autoWalkPlanning)&&value!=null&&value.length()<160000){mapPoiSnapshot=value;mapPoiAt=SystemClock.elapsedRealtime();}}
     public static String mapPoiSnapshot(){return SystemClock.elapsedRealtime()-mapPoiAt<10000?mapPoiSnapshot:"";}
     public static final MotionEngine engine = new MotionEngine();
+    private static final GameRoutesController gameRoutes = new GameRoutesController(
+        engine, SystemClock::elapsedRealtime, System::currentTimeMillis);
+    private static volatile boolean gameRoutesPlanning;
+    private static String gameRoutesLastStatus="";
+    private static volatile String gameRoutesReadiness="Waiting for Route support";
+    public static void setGameRoutesPlanning(boolean open) { gameRoutesPlanning=open; gameRoutes.setPlanning(open); }
+    public static boolean gameRoutesReady() { return gameRoutes.ready(); }
+    public static boolean gameRoutesRunning() { return gameRoutes.running(); }
+    public static String gameRoutesStatus() { return gameRoutes.ready()?gameRoutes.status():gameRoutesReadiness; }
+    public static String gameRoutesSnapshot() { return gameRoutes.snapshot(); }
+    public static String gameRoutesLastReward() { return gameRoutes.lastReward(); }
+    public static String takeGameRoutesRewardNotice() { return gameRoutes.takeRewardNotice(); }
+    public static String gameRoutesDetails() { return gameRoutes.details(); }
+    public static String gameRoutesCommand() { return gameRoutes.command(); }
+    public static boolean gameRoutesAllowed() { return hostLive() && desiredEnabled && (gameRoutesPlanning || gameRoutes.running()); }
+    public static void setGameRoutesReady(boolean value,String reason) {
+        gameRoutesReadiness=reason==null||reason.isEmpty()?"Waiting for Route support":reason;
+        gameRoutes.setReady(value);
+    }
+    public static void setGameRoutesSnapshot(String value) { gameRoutes.acceptSnapshot(value); }
+    public static void gameRoutesAction(String value) { gameRoutes.acceptAction(value); }
+    public static void startGameRoutes(int count) {
+        if(!hostLive()||!canEnable())throw new IllegalArgumentException("Location adapter is not ready");
+        gameRoutes.start(count); saveState();
+    }
+    public static void stopGameRoutes() { gameRoutes.stop("Stopped"); saveState(); }
+    public static void tickGameRoutes() {
+        gameRoutes.tick(hostLive()&&canEnable());
+        String status=gameRoutes.status();
+        if(!status.equals(gameRoutesLastStatus)){gameRoutesLastStatus=status;event("game-routes",status);}
+    }
     public static volatile String connection = "PREVIEW - game not connected";
     public static volatile long latitudeReads, longitudeReads;
     private static PrintWriter log;
@@ -288,6 +326,7 @@ public final class Control {
     // Explicit export/import block until durable; a shorter bound keeps a background flush from stalling.
     private static final long SETTINGS_FLUSH_MS = 5000, SETTINGS_BACKGROUND_FLUSH_MS = 1000;
     public static void embedded(String status) {
+        setGameRoutesReady(false,"Waiting for game");
         engine.pause(); preview = false; backendReady = false; connection = status;
         setQuickSummaryReady(false,"Waiting for catch summary support");
         setQuickBallReady(false,"Waiting for ball animation support");
@@ -513,6 +552,7 @@ public final class Control {
     public static boolean takeInteractionStopRequest() { return interactionStopRequest.getAndSet(false) || (interactionDiagnosticRunning && !interactionDiagnosticsReady()); }
     public static boolean desiredEnabled() { return desiredEnabled; }
     public static synchronized void setLocationSpoofing(boolean enabled) {
+        gameRoutes.stop("Location mode changed");
         desiredEnabled=enabled; if(!enabled){realLocation=null;realLatitude=Double.NaN;realLongitude=Double.NaN;} mapTapEpoch++; autoWalkPlanning=false;
         engine.pause(); invalidateCameraHeading("Location mode changed");
         restoreRuntime("location-setting"); saveSettings(); saveState();
@@ -648,6 +688,7 @@ public final class Control {
     public static synchronized void begin(Application app) {
         if (registered) return;
         registered = true;
+        hostApplication=app;
         vgp.setApplication(app);
         try {
             File dir = new File(app.getFilesDir(), "pgrazor-logs");
@@ -700,11 +741,13 @@ public final class Control {
     }
 
     public static void teleport(double latitude, double longitude) {
+        gameRoutes.stop("Destination changed");
         engine.position(latitude, longitude); engine.stop();
         engine.enabled = foreground && canEnable();
         saveState();
     }
     public static void walkTo(double latitude, double longitude) {
+        gameRoutes.stop("Manual walking started");
         engine.walkTo(latitude, longitude);
         if (!foreground || !canEnable()) engine.pause();
         saveState();
@@ -712,12 +755,14 @@ public final class Control {
     public static void walkRoute(double[][] waypoints) { walkRoute(waypoints, false); }
     /** As {@link #walkRoute(double[][])}, but a looping route repeats from its first stop; same lifecycle/save/readiness. */
     public static void walkRoute(double[][] waypoints, boolean loop) {
+        gameRoutes.stop("Another route started");
         engine.walkRoute(waypoints, loop);
         if (!foreground || !canEnable()) engine.pause();
         saveState();
     }
     public static void startAutoWalk(double[][] waypoints,boolean loop) {
         if(!foreground||!canEnable())throw new IllegalArgumentException("Location adapter is not ready");
+        gameRoutes.stop("Autowalk started");
         engine.walkRoute(waypoints,loop);saveState();
         event("autowalk-started","stops="+waypoints.length+" loop="+loop+" speed="+engine.speedKmh);
     }
@@ -727,6 +772,8 @@ public final class Control {
         saveState();return next;
     }
     public static void suspendForBackground() {
+        gameRoutes.stop("App left foreground; check the active in-game Route before restarting");
+        gameRoutesPlanning=false;gameRoutes.setPlanning(false);
         requestInteractionStop();
         foreground = false; autoWalkPlanning=false;mapPoiOpen=false;mapPoiSnapshot="";mapPoiAt=0; mapTapEpoch++; invalidateQuickBallOutcome(); cameraSampleRequest.set(false); invalidateCameraHeading("App backgrounded");
         // Losing the foreground switches VGP off, clears any target, and never auto-resumes.

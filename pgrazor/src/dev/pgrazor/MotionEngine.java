@@ -21,6 +21,8 @@ public final class MotionEngine {
     private long routeGeneration;
     /** Nonzero only for an active planned route, including a one-stop GPX/Autowalk. */
     public synchronized long activeRouteToken() {return walking&&plannedRoute?routeGeneration:0;}
+    /** Retains ownership after arrival; changes on cancellation or replacement. */
+    public synchronized long routeGeneration() { return routeGeneration; }
     public synchronized boolean stopRoute(long token) {
         if(token==0||token!=activeRouteToken())return false;
         stop();return true;

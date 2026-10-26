@@ -24,6 +24,7 @@ public final class QuickMenu {
         /** Cycles the walk speed and returns the new value (km/h); the caption refreshes from it. */
         double onCycleWalkSpeed();
         void onAutoWalk();
+        void onGameRoutes();
         void onFeeds();
         void onFavorites();
         void onTeleport();
@@ -55,6 +56,7 @@ public final class QuickMenu {
         LinearLayout walkRow = (LinearLayout) row(WALK, "Walk", true, this::onWalk); walkLabel = (TextView) walkRow.getChildAt(1);
         card.addView(walkRow);
         card.addView(row(AUTOWALK, "Autowalk", true, listener::onAutoWalk));
+        card.addView(row(AUTOWALK, "In-game Routes", true, listener::onGameRoutes));
         card.addView(row(FEEDS, "Feeds", true, listener::onFeeds));
         card.addView(row(FAVORITES, "Favorites", true, listener::onFavorites));
         card.addView(row(TELEPORT, "Teleport", true, listener::onTeleport));

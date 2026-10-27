@@ -20,7 +20,7 @@ public final class ControlShinyScannerTest {
         field("vgpEnabled",false);
         check(Control.shinyScannerAllowed(),"VGP off resumes eligibility");
         android.os.SystemClock.now+=7000;
-        check(!Control.shinyScannerAllowed(),"Stale map sample blocks scanner");
+        check(Control.shinyScannerAllowed(),"Map sampling does not gate native scanner requests");
         check(!Control.shinyScannerOverlayVisible(),"Overlay hidden outside map");
         Control.setShinyScannerMapVisible(true);
         field("foreground",false);
@@ -30,6 +30,6 @@ public final class ControlShinyScannerTest {
         check(!Control.shinyScannerAllowed()&&Control.shinyScannerEnabled(),"Unavailable preserves preference but blocks requests");
         Control.setShinyScannerReady(true,"Ready");Control.setShinyScannerEnabled(false);
         check(!Control.shinyScannerAllowed(),"User disable blocks scanner");
-        System.out.println("PASS: scanner readiness, foreground, map freshness, VGP and preference gates");
+        System.out.println("PASS: scanner readiness, foreground, map visibility, VGP and preference gates");
     }
 }

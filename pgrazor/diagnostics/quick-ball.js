@@ -340,6 +340,7 @@ function prepare(module,api,domain){
    const successField=api.class_get_field_from_name(statusClass,Memory.allocUtf8String('EncounterSuccess'));
    if(successField.isNull()||!api.field_get_parent(successField).equals(statusClass)||(api.field_get_flags(successField)&0x8050)!==0x8050||typeName(api,api.field_get_type(successField))!==statusType)throw Error('scanner-status-success');
    const successValue=Memory.alloc(4);api.field_static_get_value(successField,successValue);
+   let setup=null;try{setup=method(need(NAMEPLATE),'SetPokemonUI','System.Void',[MAPPK,'Niantic.Rpc.GameplayWeatherProto.Types.WeatherCondition'],false,[0xad84364,'ff8303d1fd7b08a9fc6f09a9fa670aa9f85f0ba9f6570ca9f44f0da9541a02f0]);}catch(_){}
    return{request,findAll,typeObject:new NativeFunction(typeExport,'pointer',['pointer'],{scheduling:'exclusive'}),
     status,success:successValue.readS32(),wildMap,wildProto,encounterOut,pokemon,
     mapWild:check(wildMap,'eluo',WILDPROTO,0x270),mapResponse:check(wildMap,'elup',ENCOUNTEROUT,0x278),
@@ -348,8 +349,7 @@ function prepare(module,api,domain){
     wildId:check(wildProto,'EncounterId','System.UInt64',0x10),cp:check(pokemon,'cp_','System.Int32',0x2c),
     species:check(pokemon,'pokemonId_','System.Int32',0x28),
     visible:method(wildMap,'get_VisibleOnMap','System.Boolean',[],false,null),
-    shiny:method(pokemon,'get_IsShinyPokemon','System.Boolean',[],false,null),
-    setup:method(need(NAMEPLATE),'SetPokemonUI','System.Void',[MAPPK,'Niantic.Rpc.GameplayWeatherProto.Types.WeatherCondition'],false,[0xad84364,'ff8303d1fd7b08a9fc6f09a9fa670aa9f85f0ba9f6570ca9f44f0da9541a02f0])};
+    shiny:method(pokemon,'get_IsShinyPokemon','System.Boolean',[],false,null),setup};
   });
   return{module,api,classes,fields,fieldMeta,methods,success,outcomes,trace,throws,alwaysHit,arThrows,mapTap,iv,ivText,ivOwned,ivOutline,shinyScanner,caller:module.base.add(0xad691d0)};
  }finally{if(owned&&!owned.isNull())api.thread_detach(owned);}

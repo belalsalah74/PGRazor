@@ -455,7 +455,7 @@ function revokeQuickBall() {
 function scheduleQuickBall() {
     if ((bootParameters.quickBall!==true && bootParameters.shinyScanner!==true) || !bootParameters.quickBallPath) return;
     try {
-        control.configureQuickBall(true);
+        control.configureQuickBall(bootParameters.quickBallGameplay===true);
         if(bootParameters.translatedRole!=='native') {
         const methods=[
             [control.setQuickBallEnabled.overload('boolean'),false],

@@ -18,7 +18,7 @@ function fixture(fault={}) {
   originals['setQuick'+name+'Ready']=v=>{if(name==='Ball'&&fault.ballStatusThrows)throw Error('ball status bridge failed');f.ready=v&&f.configured;if(!f.ready)f.enabled=false;return 'ready';};
   f.api={start(o){f.options=o;return new Promise(resolve=>f.finish=resolve);},setAllowed(v){
    f.permissions.push(v);order.push(name+':'+v);if(!v&&f.failRevoke)throw Error('revocation failed');
-  },stop(){f.stopCount++;order.push(name+':stop');if(name==='Ball')return new Promise(resolve=>f.resolveStop=()=>{f.finish({status:'cancelled'});resolve({status:'cancelled'});});f.finish({status:'cancelled'});return Promise.resolve();}};
+  },setShinyScannerOptions(...a){f.scannerOptions=a;},stop(){f.stopCount++;order.push(name+':stop');if(name==='Ball')return new Promise(resolve=>f.resolveStop=()=>{f.finish({status:'cancelled'});resolve({status:'cancelled'});});f.finish({status:'cancelled'});return Promise.resolve();}};
  }
  for(const [name,fn] of Object.entries(originals)) {
   let implementation=null;

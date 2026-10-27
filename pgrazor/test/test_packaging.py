@@ -35,6 +35,13 @@ class PackageTests(unittest.TestCase):
             self.assertTrue(package.call_args.kwargs['quick_close'])
             self.assertNotIn('quick_summary',package.call_args.kwargs)
             install.assert_not_called(); command.assert_not_called()
+        with patch.object(nonroot,'package',return_value=({'outputs':[]},ROOT)) as package, \
+             patch.object(nonroot,'probe') as install, patch.object(nonroot,'command') as command, \
+             contextlib.redirect_stdout(io.StringIO()):
+            nonroot.main(['--apk','game.apkm','--shiny-scanner','--skip-build'])
+            self.assertTrue(package.call_args.kwargs['shiny_scanner'])
+            self.assertFalse(package.call_args.kwargs.get('quick_ball',False))
+            install.assert_not_called(); command.assert_not_called()
         with patch.object(nonroot,'validated_build') as build, contextlib.redirect_stderr(io.StringIO()):
             for extra in (['--quick-summary'],['--panel-only'],['--il2cpp-survey'],['--scene-probe'],['--camera-sample']):
                 with self.assertRaises(SystemExit):

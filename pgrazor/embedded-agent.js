@@ -495,6 +495,7 @@ function scheduleQuickBall() {
                     if(event.kind==='cooldown-encounter')control.setCooldownEncounter(event.source);
                     if(!disposed && bootParameters.shinyScanner===true && event.kind==='shiny-ready')control.setShinyScannerReady(!!event.available,event.reason||'Ready');
                     if(!disposed && bootParameters.shinyScanner===true && event.kind==='shiny-status')control.setShinyScannerStatus(event.message||'');
+                    if(!disposed && bootParameters.shinyScanner===true && event.kind==='shiny-map-visible')control.setShinyScannerMapVisible(event.visible===true);
                     if(!disposed && bootParameters.shinyScanner===true && event.kind==='shiny-found')control.shinyScannerFound(String(event.encounterId),event.species,event.cp,event.latitude,event.longitude);
                     if(!disposed && !quickBallFailed && event.kind==='metadata-ready') {
                         quickBallNativeReady=true;

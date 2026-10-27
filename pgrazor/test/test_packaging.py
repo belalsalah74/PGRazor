@@ -418,7 +418,7 @@ class PackageTests(unittest.TestCase):
                 for part in parts:
                     if part.startswith('runtime/'):
                         fixture=work/part; fixture.parent.mkdir(parents=True,exist_ok=True)
-                        fixture.write_bytes(('// fixture '+part+'\n').encode())
+                        if not fixture.exists(): fixture.write_bytes(('// fixture '+part+'\n').encode())
             bridge=work/'bridge.js'; bridge.write_bytes(b'// bridge fixture\n')
             gadget=work/'gadget.so'; gadget.write_bytes(b'gadget fixture')
             for name in ['NOTICE.txt','COPYING.frida-tools','bridge-provenance.json']:

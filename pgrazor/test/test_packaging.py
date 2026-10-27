@@ -488,6 +488,7 @@ class PackageTests(unittest.TestCase):
                                 expected_diagnostics['quick_summary']=close
                                 self.assertEqual(report['diagnostics']['quick_summary']['behavior'],'normal-summary-and-details-dismiss')
                             if options.get('quick_ball'): expected_diagnostics['quick_ball']=ball
+                            if options.get('shiny_scanner'): expected_diagnostics['shiny_scanner']=work/'runtime/features/shinyScanner.js'
                             self.assertEqual(set(report['diagnostics']),set(expected_diagnostics))
                             for key,expected in expected_diagnostics.items():
                                 diagnostic=report['diagnostics'][key]
@@ -496,10 +497,14 @@ class PackageTests(unittest.TestCase):
                                     self.assertEqual(diagnostic['steering'],options.get('camera_steering',False))
                                 if key=='scene_probe': self.assertEqual(diagnostic['observe_runtime'],options.get('scene_observe',False))
                                 if key=='interaction_probe': self.assertEqual(diagnostic['startup_mode'],'metadata-only')
-                                if key in ('quick_summary','quick_ball'):
+                                if key in ('quick_summary','quick_ball','shiny_scanner'):
                                     self.assertEqual(diagnostic['startup_mode'],'metadata-validation')
-                                    self.assertIs(diagnostic['acceleration_default'],False)
+                                    if key in ('quick_summary','quick_ball'): self.assertIs(diagnostic['acceleration_default'],False)
+                                    if key=='shiny_scanner': self.assertIs(diagnostic['quick_ball_gameplay'],False)
                                 expected_bytes=expected.read_bytes()
+                                manifest=json.loads((work/'runtime/bundles.json').read_text())
+                                if key=='quick_ball': expected_bytes=b'\\n;\\n'.join((work/part).read_bytes() for part in manifest['quick-ball.js'])
+                                if key=='shiny_scanner': expected_bytes=b'\\n;\\n'.join((work/part).read_bytes() for part in manifest['shiny-scanner.js'])
                                 if key=='quick_summary' and options.get('quick_close'):
                                     expected_bytes=b'\n;\n'.join((work/part).read_bytes() for part in json.loads((work/'runtime/bundles.json').read_text())['quick-close.js'])
                                 self.assertEqual(diagnostic['sha256'],hashlib.sha256(expected_bytes).hexdigest())

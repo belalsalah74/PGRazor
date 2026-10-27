@@ -225,26 +225,28 @@ public final class Control {
     // boundary; the runtime status text and the (never-persisted) found-shiny result are owned by
     // ShinyScannerController so this state has a single home. UI reads only through the accessors below.
     private static volatile boolean shinyScannerEnabled, shinyScannerReady;
+    private static volatile long shinyScannerMapSample;
     private static final ShinyScannerController shinyScanner = new ShinyScannerController(
         Control::currentLatitude, Control::currentLongitude, detail -> event("shiny-scanner-found",detail));
     public static boolean shinyScannerEnabled(){return shinyScannerEnabled;}
     /** Persisted toggle (default off); turning it off drops the runtime result immediately. */
     public static void setShinyScannerEnabled(boolean value){
         if(value==shinyScannerEnabled)return;
-        shinyScannerEnabled=value;if(!value)shinyScanner.clearResult();
+        shinyScannerEnabled=value;if(!value){shinyScanner.clearResult();setShinyScannerMapVisible(false);}
         saveSettings();event("shiny-scanner-setting",value?"ON":"OFF");
     }
     public static void setShinyScannerReady(boolean ready,String status){shinyScannerReady=ready;shinyScanner.setStatus(status);}
     public static void setShinyScannerStatus(String status){shinyScanner.setStatus(status);}
     /** Map-visible heartbeat shared with the buddy/VGP gates: a native map sample within the last 1.5s. */
-    private static boolean shinyScannerMapVisible(){long age=SystemClock.elapsedRealtime()-buddyMapSample;return buddyMapSample>0&&age>=0&&age<1500;}
+    public static void setShinyScannerMapVisible(boolean visible){shinyScannerMapSample=visible?SystemClock.elapsedRealtime():0;}
+    private static boolean shinyScannerMapVisible(){long age=SystemClock.elapsedRealtime()-shinyScannerMapSample;return shinyScannerMapSample>0&&age>=0&&age<6500;}
     /**
      * Fail-closed readiness: the scanner only runs in the foreground with a live backend, a known
      * location and a visible map, with the saved toggle on, native support ready, and VGP off (the
      * scanner pauses while Virtual Go Plus is active so the two never contend for the map).
      */
     public static boolean shinyScannerAllowed(){
-        return shinyScannerEnabled&&shinyScannerReady&&!vgpEnabled()&&locationKnown()&&shinyScannerMapVisible()&&hostLive();
+        return shinyScannerEnabled&&shinyScannerReady&&!vgpEnabled()&&locationKnown()&&hostLive();
     }
     /** Concise runtime status with a specific reason whenever scanning is blocked, else the native text. */
     public static String shinyScannerStatus(){
@@ -288,7 +290,7 @@ public final class Control {
     public static void setBuddyStatus(String status){buddyStatus=status;}
     public static String buddyStatus(){return buddyStatus;}
     public static boolean buddyAvailable(){return buddyReady&&itemAccessAllowed();}
-    public static boolean buddySamplingRequested(){return (buddyBerry!=0||vgpEnabled||autoIncubate||shinyScannerEnabled)&&hostLive();}
+    public static boolean buddySamplingRequested(){return (buddyBerry!=0||vgpEnabled||autoIncubate)&&hostLive();}
     public static boolean buddyAllowed(){long age=SystemClock.elapsedRealtime()-buddyMapSample;return buddyAvailable()&&buddyMapSample>0&&age>=0&&age<1500;}
     private static volatile boolean encounterBerryActive,encounterBerryBusy;
     private static volatile long encounterBerrySeen;

@@ -503,8 +503,8 @@ class PackageTests(unittest.TestCase):
                                     if key=='shiny_scanner': self.assertIs(diagnostic['quick_ball_gameplay'],False)
                                 expected_bytes=expected.read_bytes()
                                 manifest=json.loads((work/'runtime/bundles.json').read_text())
-                                if key=='quick_ball': expected_bytes=b'\\n;\\n'.join((work/part).read_bytes() for part in manifest['quick-ball.js'])
-                                if key=='shiny_scanner': expected_bytes=b'\\n;\\n'.join((work/part).read_bytes() for part in manifest['shiny-scanner.js'])
+                                if key=='quick_ball': expected_bytes=b'\n;\n'.join((work/part).read_bytes() for part in manifest['quick-ball.js'])
+                                if key=='shiny_scanner': expected_bytes=b'\n;\n'.join((work/part).read_bytes() for part in manifest['shiny-scanner.js'])
                                 if key=='quick_summary' and options.get('quick_close'):
                                     expected_bytes=b'\n;\n'.join((work/part).read_bytes() for part in json.loads((work/'runtime/bundles.json').read_text())['quick-close.js'])
                                 self.assertEqual(diagnostic['sha256'],hashlib.sha256(expected_bytes).hexdigest())

@@ -221,8 +221,10 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
             assets['assets/pgrazor/quick-summary.js']=ROOT/'diagnostics/quick-summary.js'
             assets['assets/pgrazor/quick-close.js']=script_bundle.bundle(ROOT,'quick-close.js')
         if quick_ball or shiny_scanner:
-            bundle_name='quick-ball.js' if quick_ball else 'shiny-scanner.js'
-            assets['assets/pgrazor/quick-ball.js']=script_bundle.bundle(ROOT,bundle_name)
+            bundle_name='shiny-scanner.js' if shiny_scanner else 'quick-ball.js'
+            bundled=script_bundle.bundle(ROOT,bundle_name)
+            assets['assets/pgrazor/quick-ball.js']=bundled
+            if shiny_scanner: assets['assets/pgrazor/shiny-scanner.js']=bundled
         for notice in ['NOTICE.txt','COPYING.frida-tools','bridge-provenance.json']:
             assets['assets/pgrazor/bridge-notices/'+notice]=ROOT/'vendor'/notice
     report={'input':str(source.resolve()),'input_sha256':runtime_assets.sha256(source),'package':package_name,
@@ -237,7 +239,7 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
         report['script_bundles']={name:{
             'sha256':hashlib.sha256(assets['assets/pgrazor/'+name]).hexdigest(),
             'sources':[{'path':part,'sha256':runtime_assets.sha256(ROOT/part)} for part in parts]
-        } for name,parts in manifest.items() if 'assets/pgrazor/'+name in assets}
+        } for name,parts in manifest.items() if 'assets/pgrazor/'+name in assets and not (shiny_scanner and name=='quick-ball.js')}
     if il2cpp_survey:
         report['diagnostics']={'il2cpp_survey':{
             'source':str(ROOT/'diagnostics/il2cpp-survey.js'),

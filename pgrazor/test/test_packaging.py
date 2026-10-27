@@ -469,6 +469,7 @@ class PackageTests(unittest.TestCase):
                         self.assertEqual(mode.get('quickSummary',False),bool(options.get('quick_summary') or options.get('quick_close')))
                         self.assertEqual(mode.get('quickClose',False),options.get('quick_close',False))
                         self.assertEqual(mode.get('quickBall',False),options.get('quick_ball',False) or options.get('shiny_scanner',False))
+                        self.assertEqual(mode.get('quickBallGameplay',False),options.get('quick_ball',False))
                         self.assertEqual('assets/pgrazor/il2cpp-survey.js' in archive.namelist(),options.get('il2cpp_survey',False))
                         self.assertEqual('assets/pgrazor/camera-probe.js' in archive.namelist(),camera_enabled)
                         self.assertEqual('assets/pgrazor/scene-probe.js' in archive.namelist(),scene_enabled)

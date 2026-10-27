@@ -568,8 +568,27 @@ class PackageTests(unittest.TestCase):
     def test_stale_source_rejected(self):
         with tempfile.TemporaryDirectory(dir=ROOT/'build') as temp,patch.object(nonroot,'ROOT',Path(temp)):
             work=Path(temp); (work/'build').mkdir(); (work/'src').mkdir(); (work/'AndroidManifest.xml').write_text('new')
+            (work/'VERSION').write_text('0.1.6')
             (work/'build/build-state.json').write_text(json.dumps({'sources':{}}))
             with self.assertRaisesRegex(RuntimeError,'stale'): nonroot.validated_build()
+
+    def test_current_receipt_accepts_version_and_rejects_changed_release(self):
+        with tempfile.TemporaryDirectory(dir=ROOT/'build') as temp, patch.object(nonroot,'ROOT',Path(temp)), \
+             patch.dict(nonroot.build.os.environ, {'PGRAZOR_VERSION':'v0.1.6'}):
+            work=Path(temp); (work/'build').mkdir(); (work/'src').mkdir()
+            (work/'AndroidManifest.xml').write_text('manifest')
+            (work/'VERSION').write_text('0.1.6')
+            (work/'src/Example.java').write_text('class Example {}')
+            dex=work/'build/pgrazor.dex'; dex.write_bytes(b'dex\nLdev/pgrazor/BootstrapProvider;')
+            state={'version':nonroot.build.release_version(work),
+                   'sources':nonroot.build.source_fingerprints(work),
+                   'dex_sha256':runtime_assets.sha256(dex)}
+            (work/'build/build-state.json').write_text(json.dumps(state))
+            self.assertEqual(nonroot.validated_build(),dex)
+            with patch.dict(nonroot.build.os.environ, {'PGRAZOR_VERSION':'v0.1.7'}):
+                with self.assertRaisesRegex(RuntimeError,'version is stale'): nonroot.validated_build()
+            (work/'VERSION').write_text('0.1.7')
+            with self.assertRaisesRegex(RuntimeError,'classes are stale'): nonroot.validated_build()
 
     def test_game_install_is_never_a_probe(self):
         with self.assertRaisesRegex(RuntimeError,'restricted'):

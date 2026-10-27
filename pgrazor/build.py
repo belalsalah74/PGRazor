@@ -12,6 +12,16 @@ import json
 
 ROOT = Path(__file__).resolve().parent
 
+def source_fingerprints(root):
+    paths = [*sorted((root/'src').rglob('*.java')), root/'VERSION', root/'AndroidManifest.xml']
+    return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
+
+def release_version(root):
+    version = os.environ.get('PGRAZOR_VERSION', (root/'VERSION').read_text(encoding='utf-8').strip())
+    if not re.fullmatch(r'v?[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?', version):
+        raise ValueError('Invalid PGRazor version')
+    return 'v' + version.removeprefix('v')
+
 def map_icon_assets():
     """Bundled POI marker PNGs plus the Pokemon name table for assets/pgrazor/map-icons.
 
@@ -87,10 +97,7 @@ def main():
     run('javac','-encoding','UTF-8','-d',BUILD/'tests',ROOT/'src/dev/pgrazor/CameraSteering.java',ROOT/'src/dev/pgrazor/CameraHeadingState.java',ROOT/'test/CameraHeadingStateTest.java')
     run('java','-cp',BUILD/'tests','CameraHeadingStateTest')
     if args.test_only: return
-    version = os.environ.get('PGRAZOR_VERSION', (ROOT/'VERSION').read_text(encoding='utf-8').strip())
-    if not re.fullmatch(r'v?[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?', version):
-        raise ValueError('Invalid PGRazor version')
-    version = 'v' + version.removeprefix('v')
+    version = release_version(ROOT)
     # Fresh outputs prevent a failed compiler from silently reusing old classes.
     classes=BUILD/('compile-'+uuid.uuid4().hex[:12]); classes.mkdir()
     version_source = classes/'BuildVersion.java'
@@ -116,9 +123,7 @@ def main():
     run(TOOLS/'apksigner.bat','sign',*signing_args(),'--out',apk,BUILD/'preview-aligned.apk')
     run(TOOLS/'apksigner.bat','verify',apk)
     shutil.copyfile(BUILD/'dex/classes.dex',BUILD/'pgrazor.dex')
-    fingerprints={p.relative_to(ROOT).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/'src').rglob('*.java'))}
-    fingerprints['VERSION']=hashlib.sha256((ROOT/'VERSION').read_bytes()).hexdigest()
-    fingerprints['AndroidManifest.xml']=hashlib.sha256((ROOT/'AndroidManifest.xml').read_bytes()).hexdigest()
+    fingerprints=source_fingerprints(ROOT)
     (BUILD/'build-state.json').write_text(json.dumps({'version':version,'sources':fingerprints,'dex_sha256':hashlib.sha256((BUILD/'pgrazor.dex').read_bytes()).hexdigest()},indent=2),encoding='utf-8')
     print('Built:',apk)
 

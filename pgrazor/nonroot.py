@@ -52,9 +52,9 @@ def validated_build():
     receipt=ROOT/'build/build-state.json'
     if not receipt.is_file(): raise RuntimeError('Build receipt missing. Run without --skip-build to compile the current source.')
     state=json.loads(receipt.read_text(encoding='utf-8'))
-    actual={p.relative_to(ROOT).as_posix():runtime_assets.sha256(p) for p in sorted((ROOT/'src').rglob('*.java'))}
-    actual['AndroidManifest.xml']=runtime_assets.sha256(ROOT/'AndroidManifest.xml')
+    actual=build.source_fingerprints(ROOT)
     if state.get('sources')!=actual: raise RuntimeError('Built classes are stale. Run without --skip-build.')
+    if state.get('version')!=build.release_version(ROOT): raise RuntimeError('Built version is stale. Run without --skip-build.')
     dex=ROOT/'build/pgrazor.dex'
     if not dex.is_file() or runtime_assets.sha256(dex)!=state.get('dex_sha256'): raise RuntimeError('Built DEX checksum mismatch')
     data=dex.read_bytes()

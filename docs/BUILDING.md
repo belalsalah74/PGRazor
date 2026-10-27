@@ -32,7 +32,7 @@ python -B pgrazor/release_apk.py --run pgrazor/build/nonroot/RUN-ID --output pgr
 
 Use the run directory printed by the first command. The second command merges the library-only ARM64 configuration split, removes split-install requirements, labels the installed application PokÃ©mon GO (the in-game menu remains PGRazor), aligns and signs **PGRazor.apk**, and writes checksums. It rejects resource/code splits rather than silently dropping them. No command installs anything on a phone.
 
-To build a scanner-only candidate, replace `--quick-ball` with `--shiny-scanner`. This exposes a separate Shiny Scanner setting and overlay while leaving Quick Ball gameplay controls disabled. The scanner still uses the shared native diagnostics host for Unity-thread metadata and lifecycle management; the `--shiny-scanner` option does not enable catching or throw automation.
+To build a scanner candidate, replace `--quick-ball` with `--shiny-scanner`. For a scanner-only package, omit `--quick-close`, `--camera-steering`, and `--interaction-probe` too. This exposes a separate Shiny Scanner setting and overlay while leaving Quick Ball gameplay controls disabled. The scanner still uses the shared native diagnostics host for Unity-thread metadata and lifecycle management; the `--shiny-scanner` option does not enable catching or throw automation.
 
 Single-APK packaging is new and still needs a disconnected-phone install/launch check. Existing split builds remain available in the run directory as a rollback option. Preserve a tested installation until the new candidate has been checked.
 

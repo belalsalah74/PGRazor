@@ -406,10 +406,12 @@ class PackageTests(unittest.TestCase):
             shutil.copyfile(ROOT/'runtime/bundles.json', work/'runtime/bundles.json')
             (work/'runtime/location.js').write_bytes(b'// location fixture\n')
             (work/'runtime/translated.js').write_bytes(b'// translated fixture\n')
-            for part in json.loads((ROOT/'runtime/bundles.json').read_text())['quick-close.js']:
-                if part.startswith('runtime/'):
-                    fixture=work/part; fixture.parent.mkdir(parents=True,exist_ok=True)
-                    fixture.write_bytes(('// fixture '+part+'\n').encode())
+            manifest=json.loads((work/'runtime/bundles.json').read_text())
+            for parts in manifest.values():
+                for part in parts:
+                    if part.startswith('runtime/'):
+                        fixture=work/part; fixture.parent.mkdir(parents=True,exist_ok=True)
+                        fixture.write_bytes(('// fixture '+part+'\n').encode())
             bridge=work/'bridge.js'; bridge.write_bytes(b'// bridge fixture\n')
             gadget=work/'gadget.so'; gadget.write_bytes(b'gadget fixture')
             for name in ['NOTICE.txt','COPYING.frida-tools','bridge-provenance.json']:
@@ -432,7 +434,7 @@ class PackageTests(unittest.TestCase):
                  patch.object(axml,'patch_manifest',side_effect=lambda data:data), \
                  patch.object(axml,'add_account_restart_activity',side_effect=lambda data:data), \
                  contextlib.redirect_stdout(io.StringIO()):
-                cases=[{}]+[{name:True} for name in ('il2cpp_survey','camera_probe','camera_sample','camera_steering','scene_probe','scene_observe','interaction_probe','quick_summary','quick_ball')]
+                cases=[{}]+[{name:True} for name in ('il2cpp_survey','camera_probe','camera_sample','camera_steering','scene_probe','scene_observe','interaction_probe','quick_summary','quick_ball','shiny_scanner')]
                 cases.append({'camera_steering':True,'interaction_probe':True})
                 cases.extend([{'quick_close':True},{'quick_close':True,'quick_ball':True,'camera_steering':True,'interaction_probe':True}])
                 cases.extend([{'quick_ball':True,'quick_summary':True,'camera_steering':True,'interaction_probe':True},{'quick_ball':True,'camera_steering':True},{'quick_ball':True,'interaction_probe':True},{'quick_summary':True,'camera_steering':True},{'quick_summary':True,'interaction_probe':True},
@@ -466,14 +468,14 @@ class PackageTests(unittest.TestCase):
                         self.assertEqual(mode.get('interactionProbe',False),options.get('interaction_probe',False))
                         self.assertEqual(mode.get('quickSummary',False),bool(options.get('quick_summary') or options.get('quick_close')))
                         self.assertEqual(mode.get('quickClose',False),options.get('quick_close',False))
-                        self.assertEqual(mode.get('quickBall',False),options.get('quick_ball',False))
+                        self.assertEqual(mode.get('quickBall',False),options.get('quick_ball',False) or options.get('shiny_scanner',False))
                         self.assertEqual('assets/pgrazor/il2cpp-survey.js' in archive.namelist(),options.get('il2cpp_survey',False))
                         self.assertEqual('assets/pgrazor/camera-probe.js' in archive.namelist(),camera_enabled)
                         self.assertEqual('assets/pgrazor/scene-probe.js' in archive.namelist(),scene_enabled)
                         self.assertEqual('assets/pgrazor/interaction-probe.js' in archive.namelist(),options.get('interaction_probe',False))
                         self.assertEqual('assets/pgrazor/quick-summary.js' in archive.namelist(),bool(options.get('quick_summary') or options.get('quick_close')))
                         self.assertEqual('assets/pgrazor/quick-close.js' in archive.namelist(),options.get('quick_close',False))
-                        self.assertEqual('assets/pgrazor/quick-ball.js' in archive.namelist(),options.get('quick_ball',False))
+                        self.assertEqual('assets/pgrazor/quick-ball.js' in archive.namelist(),options.get('quick_ball',False) or options.get('shiny_scanner',False))
                         self.assertEqual(archive.read('classes.dex'),b'original-game-dex')
                         if options:
                             expected_diagnostics={}

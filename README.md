@@ -34,6 +34,7 @@ Features listed here include unreleased changes on `main`; check your release no
 | Inventory | Optional IV/level on Pokémon details; transfer newly caught Pokémon below 90% IV; configurable item limits |
 | Keep rules | Legendary/mythical/Ultra Beasts, shiny, event/costume, background, **XXS**, **XXL**, searchable custom species keep list, and a persistent Keep All overlay; favorites and eggs always kept |
 | Virtual Go Plus | Nearby wild catches with red balls, nearby stop spins, optional notifications, target marker and activity status |
+| Shiny scanner (experimental) | Checks currently loaded, visible nearby wild Pokémon for shiny status; map overlay; independent build option; does not catch Pokémon |
 | Eggs | Unlimited incubator only; shortest- or longest-distance priority |
 | LivePokeMap | Remote Pokémon, stops, gyms, raids, and stations; requires a LivePokeMap subscription |
 | Battles | Rocket quick/charged attacks, charged minigame and shields; raid/gym/Dynamax attacks, Max attacks and dodging |

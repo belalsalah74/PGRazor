@@ -443,7 +443,7 @@ class PackageTests(unittest.TestCase):
                  contextlib.redirect_stdout(io.StringIO()):
                 cases=[{}]+[{name:True} for name in ('il2cpp_survey','camera_probe','camera_sample','camera_steering','scene_probe','scene_observe','interaction_probe','quick_summary','quick_ball','shiny_scanner')]
                 cases.append({'camera_steering':True,'interaction_probe':True})
-                cases.extend([{'quick_close':True},{'quick_close':True,'quick_ball':True,'camera_steering':True,'interaction_probe':True}])
+                cases.extend([{'quick_close':True},{'quick_close':True,'quick_ball':True,'camera_steering':True,'interaction_probe':True},{'quick_ball':True,'shiny_scanner':True}])
                 cases.extend([{'quick_ball':True,'quick_summary':True,'camera_steering':True,'interaction_probe':True},{'quick_ball':True,'camera_steering':True},{'quick_ball':True,'interaction_probe':True},{'quick_summary':True,'camera_steering':True},{'quick_summary':True,'interaction_probe':True},
                     {'quick_summary':True,'camera_steering':True,'interaction_probe':True}])
                 for options in cases:
@@ -484,6 +484,7 @@ class PackageTests(unittest.TestCase):
                         self.assertEqual('assets/pgrazor/quick-summary.js' in archive.namelist(),bool(options.get('quick_summary') or options.get('quick_close')))
                         self.assertEqual('assets/pgrazor/quick-close.js' in archive.namelist(),options.get('quick_close',False))
                         self.assertEqual('assets/pgrazor/quick-ball.js' in archive.namelist(),options.get('quick_ball',False) or options.get('shiny_scanner',False))
+                        self.assertEqual('assets/pgrazor/shiny-scanner.js' in archive.namelist(),options.get('shiny_scanner',False))
                         self.assertEqual(archive.read('classes.dex'),b'original-game-dex')
                         if options:
                             expected_diagnostics={}
@@ -511,7 +512,7 @@ class PackageTests(unittest.TestCase):
                                     if key=='shiny_scanner': self.assertIs(diagnostic['quick_ball_gameplay'],False)
                                 expected_bytes=expected.read_bytes()
                                 manifest=json.loads((work/'runtime/bundles.json').read_text())
-                                if key=='quick_ball': expected_bytes=b'\n;\n'.join((work/part).read_bytes() for part in manifest['quick-ball.js'])
+                                if key=='quick_ball': expected_bytes=b'\n;\n'.join((work/part).read_bytes() for part in manifest['shiny-scanner.js' if options.get('shiny_scanner') else 'quick-ball.js'])
                                 if key=='shiny_scanner': expected_bytes=b'\n;\n'.join((work/part).read_bytes() for part in manifest['shiny-scanner.js'])
                                 if key=='quick_summary' and options.get('quick_close'):
                                     expected_bytes=b'\n;\n'.join((work/part).read_bytes() for part in json.loads((work/'runtime/bundles.json').read_text())['quick-close.js'])

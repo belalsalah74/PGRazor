@@ -107,16 +107,18 @@
     const typeObj=own(sc.typeObject(api.class_get_type(iv.wildMap))),args=Memory.alloc(8);args.writePointer(typeObj);
     const array=own(invoke(sc.findAll,ptr(0),args)),count=array.add(24).readU64().toNumber();
     if(!Number.isFinite(count)||count<0||count>MAX_OBJECTS)throw Error('map-count');
-    let nearby=0,chosen=null;
+    let nearby=0,chosen=null,mapVisible=false;
     for(let i=0;i<count&&!chosen;i++){
      const map=array.add(32+i*8).readPointer();if(!exact(map,iv.wildMap))continue;
      const mapHandle=hold(map);roots.push(mapHandle);if(!alive(mapHandle)||!bool(sc.visible.method,map))continue;
+     mapVisible=true;
      const wild=own(field(map,iv.mapWild,'pointer'));if(!exact(wild,iv.wildProto))continue;
      const lat=readDouble(wild,iv.wildLatitude),lon=readDouble(wild,iv.wildLongitude);
      if(!inRange(st.latitude,st.longitude,lat,lon))continue;nearby++;
      const id=readId(wild);if(manualExcluded(id,now)||cacheHas(st.cache,id,now))continue;
      chosen={map,id,cached:!field(map,iv.mapResponse,'pointer').isNull()};
     }
+    event(s,'shiny-map-visible',{visible:mapVisible});
     if(!chosen){status(nearby?'Nearby targets already checked':'No wild Pokemon within range');return;}
     // A cached valid response classifies without a new request.
     if(chosen.cached){classifyMap(chosen.map,chosen.id,now);return;}
@@ -146,7 +148,9 @@
      // Stale map, despawn, cancellation and the manual-encounter race all drop the request.
      if(!alive(r.map)||manualExcluded(r.id,now)){drop();return;}
      const map=target(r.map),wild=field(map,iv.mapWild,'pointer');
-     if(!bool(sc.visible.method,map)||!exact(wild,iv.wildProto)||readId(wild)!==r.id||!inRange(st.latitude,st.longitude,readDouble(wild,iv.wildLatitude),readDouble(wild,iv.wildLongitude))){drop();return;}
+     if(!bool(sc.visible.method,map)){event(s,'shiny-map-visible',{visible:false});drop();return;}
+     event(s,'shiny-map-visible',{visible:true});
+     if(!exact(wild,iv.wildProto)||readId(wild)!==r.id||!inRange(st.latitude,st.longitude,readDouble(wild,iv.wildLatitude),readDouble(wild,iv.wildLongitude))){drop();return;}
      if(requestExpired(r,now)){cachePut(st.cache,r.id,'error',now);drop();st.next=now+REQUEST_GAP_MS;status('Request timed out');return;}
      if(field(target(r.map),iv.mapResponse,'pointer').isNull())return; // response not populated yet
      classifyMap(target(r.map),r.id,now);return;

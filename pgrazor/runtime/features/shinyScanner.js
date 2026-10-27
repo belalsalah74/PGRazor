@@ -174,7 +174,7 @@
    event(s,'shiny-ready',{available:true});
    // Respect a manual encounter: note the wild target the nameplate opens so the
    // scanner never claims or re-requests it while the user is interacting.
-   if(iv&&sc.available&&sc.setup&&sc.setup.address)s.listeners.push(Interceptor.attach(sc.setup.address,{onEnter(a){
+   if(sc.setup&&sc.setup.address)s.listeners.push(Interceptor.attach(sc.setup.address,{onEnter(a){
     if(st.off||s.stopping||!unity(this.threadId))return;
     try{if(!exact(a[1],sc.wildMap))return;const wild=field(a[1],sc.mapWild,'pointer');if(!exact(wild,sc.wildProto))return;
      st.manual={id:readId(wild),at:s.now()};if(st.pending&&st.pending.id===st.manual.id)drop();}catch(_){}

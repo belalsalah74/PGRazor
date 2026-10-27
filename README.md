@@ -25,7 +25,7 @@ The Android package identity stays compatible with the game. An official-store i
 
 ## Features
 
-The Settings header shows the PGRazor version (for example, `v0.1.5`) immediately to the right of the theme button. Features listed here include unreleased changes on `main`; check your release notes for what is included in your installed APK.
+Features listed here include unreleased changes on `main`; check your release notes for what is included in your installed APK.
 
 | Area | Controls |
 | --- | --- |
@@ -38,9 +38,12 @@ The Settings header shows the PGRazor version (for example, `v0.1.5`) immediatel
 | LivePokeMap | Remote Pokémon, stops, gyms, raids, and stations; requires a LivePokeMap subscription |
 | Battles | Rocket quick/charged attacks, charged minigame and shields; raid/gym/Dynamax attacks, Max attacks and dodging |
 | Other automation | Selectable buddy berry, gift opening/sending with optional stickers, quick spin, local spawn booster |
-| Interface | Quick menu, full-screen settings with version label, separate joystick, cooldown history, light/dark themes, settings export/import |
+| Interface | Quick menu, full-screen settings, separate joystick, cooldown history, light/dark themes, settings export/import |
+| Accounts (experimental) | Quick Menu switching, remembered Google/PTC sessions, deletion of saved accounts, and separate settings, location, cooldown history, favorites and saved GPX routes |
 
-**Quick menu:** Map, speed presets (0, 9.3, 16, 30 km/h), Autowalk, In-game Routes, Feeds, Favorites, Teleport, and Settings. Favorites shares the map's saved places. Autowalk builds a route through up to 50 nearby loaded stops and gyms, with optional looping. Routes use direct segments between locations. Zero speed pauses travel; selecting another speed resumes the current route. Backgrounding stops routes rather than resuming movement automatically.
+**Accounts:** Open **Quick Menu → Switch account** or **Settings → Accounts** to manage profiles. Delete removes an inactive profile and its saved sign-in, settings, location, favorites and routes from this device; it does not delete the Pokémon GO account. Switch away before deleting the current profile. Switching stops movement and automation, saves the outgoing account, and restarts the game with the selected account's remembered session. Sign in once per account to establish a saved session; expired or revoked sessions may require sign-in again. Sessions are encrypted on-device using Android Keystore, excluded from settings exports and Android backups, and never include saved passwords. The signed-in game identity determines the profile, including when you choose a different account at login. Existing settings become the first profile; new profiles start with defaults. LivePokeMap authentication remains shared, while its filters are per profile. Settings export/import applies to the current profile and does not export the account list. If sign-in choices are missing while signed out, **Accounts → Reset sign-in choices** restarts the game and asks for your date of birth again. Enter your own date of birth; the game controls which providers are available.
+
+**Quick menu:** Map, speed presets (0, 9.3, 16, 30 km/h), Autowalk, In-game Routes, Feeds, Favorites, Teleport, Switch account, and Settings. Favorites shares the map's saved places. Autowalk builds a route through up to 50 nearby loaded stops and gyms, with optional looping. Routes use direct segments between locations. Zero speed pauses travel; selecting another speed resumes the current route. Backgrounding stops routes rather than resuming movement automatically.
 
 **Transfer protection:** Open **Transfer on catch > Custom Keep List** to keep selected species (including all forms) from manual and VGP catches. Enable the transfer overlay for a quick **Keep All** toggle. Turning Keep All off restores your existing rules; it does not enable auto-transfer if its main setting is off. The list and toggle state are saved across restarts.
 

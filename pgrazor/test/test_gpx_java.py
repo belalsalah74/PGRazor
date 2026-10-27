@@ -51,10 +51,17 @@ class GpxJavaTests(unittest.TestCase):
             stub = work / 'android/content/Context.java'
             stub.parent.mkdir(parents=True, exist_ok=True)
             stub.write_text(CONTEXT_STUB, encoding='utf-8')
+            profiles = work / 'AccountProfiles.java'
+            profiles.write_text('''package dev.pgrazor;
+final class AccountProfiles {
+ static java.io.File file(android.content.Context context,String name) {
+  return new java.io.File(context.getFilesDir(),name);
+ }
+}''', encoding='utf-8')
             data = work / 'data'
             data.mkdir()
             classes = work / 'classes'
-            sources = [stub, ROOT / 'src/dev/pgrazor/GpxRoute.java', ROOT / 'src/dev/pgrazor/GpxCodec.java',
+            sources = [stub, profiles, ROOT / 'src/dev/pgrazor/GpxRoute.java', ROOT / 'src/dev/pgrazor/GpxCodec.java',
                        ROOT / 'src/dev/pgrazor/GpxStore.java', ROOT / 'test/GpxStoreTest.java']
             compiled = subprocess.run([str(compiler), '-encoding', 'UTF-8', '-d', str(classes), *map(str, sources)],
                                       capture_output=True, text=True, timeout=30)

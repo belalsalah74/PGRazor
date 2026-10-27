@@ -21,6 +21,7 @@
     "runtime/features/vgp.js",
     "runtime/features/routes.js",
     "runtime/features/adventureSync.js",
+      "runtime/features/accounts.js",
     "diagnostics/quick-close.js"
   ]
 }

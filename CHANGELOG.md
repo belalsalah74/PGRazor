@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v0.1.6
+
+[Full release notes](docs/releases/v0.1.6.md)
+
+- Add Switch account to the Quick Menu and deletion of inactive saved accounts, including their remembered sessions and local profile data.
+
+- Add experimental account profiles under Settings for Google/PTC sign-in, with separate settings, last location, cooldown history, favorites and saved routes. Switching stops automation and restores an encrypted saved session after restarting; each account needs an initial sign-in, with normal sign-in fallback when its session expires.
+
 - Show the PGRazor version beside the theme button in Settings.
 
 - Automatically dismiss Adventure Sync prompts when location spoofing is enabled and Android location permission is denied.

@@ -133,6 +133,7 @@ public final class Pad {
             public void onFeeds(){stick.release(true);LiveFeedDialog.show(activity);}
             public void onFavorites(){QuickLocationDialogs.showFavorites(activity,Pad.this::quickTeleport);}
             public void onTeleport(){QuickLocationDialogs.showTeleport(activity,Pad.this::quickTeleport);}
+            public void onAccounts(){stick.release(true);AccountsDialog.show(activity);}
             public void onSettings(){openSettings();}
         });
         launcher.setOnClickListener(v->{if(quickMenu!=null)quickMenu.toggle();});draggable(launcher,launcher,true);

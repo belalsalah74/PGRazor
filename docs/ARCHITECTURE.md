@@ -30,6 +30,7 @@ Paths below are relative to `pgrazor/`.
 | --- | --- |
 | Settings and feature policy | `src/dev/pgrazor/Control.java`: persisted state, readiness gates, public static bridge API |
 | Settings persistence | `SettingsWriter.java`: ordered, coalesced snapshot writes and explicit flush/failure reporting |
+| Accounts | `AccountProfileStore.java`: atomic identity index and storage namespaces; `AccountProfiles.java`: identity verification and switching; `AccountsDialog.java`: chooser; `AccountRestartActivity.java`: private process restart; `AccountSessionTransaction.java`: auth snapshot and replay journal; `AccountSessionVault.java`: Android Keystore vault; `runtime/features/accounts.js`: validated game identity/flush bridge |
 | Runtime policy and outcomes | `VgpController.java`, `CatchOutcomeController.java`: VGP guards/markers/notifications and queued catch toasts |
 | Menu and overlays | `Pad.java`: attachment, lifecycle, launcher, joystick and overlays; `SettingsPanel.java`: named settings section builders/binders and dialogs; `SettingsUi.java`: shared palette/styling |
 | Map UI and movement | `WorldMapDialog.java`, `MapProjection.java`, `AutoWalkPlanner.java`, `MotionEngine.java`: viewport, gestures, selection, routes and movement |
@@ -42,6 +43,10 @@ Paths below are relative to `pgrazor/`.
 | Packaging | `build.py`, `nonroot.py`, `script_bundle.py`, `release_apk.py`: controls, injection, script composition, signed APK |
 
 `diagnostics/` contains production native features as well as probes. The directory name does not mean those files are disposable.
+
+Account namespaces are captured once at process startup. The first profile uses existing files in place; later profiles use `pgrazor-accounts-v1/profiles/<UUID>` and suffixed SharedPreferences. Location, cooldown, settings, saved places, overlay positions, map/feed preferences and GPX routes are scoped. LivePokeMap's encrypted service login stays global. Only a SHA-256 of the game's own PlayerService identity binds a profile; the display label can contain the trainer name. No game passwords or provider tokens are copied into the profile store.
+
+Switching pauses automation and movement, flushes outgoing writes, records a pending target, then calls the game's logout wrapper. A successful logout Future plus disconnected state, or confirmed cleared live provider and cached login selection after the wrapper returns, permits target selection. An unexported activity in `:pgrazor_restart` verifies and terminates the outgoing main process before reopening the launcher. This prevents stale callbacks from writing into another account's namespace. The incoming process supplies its staged stationary location for login; gameplay automation stays gated until PlayerService identity matches. A mismatched login selects the actual identity's profile and restarts again. Interrupted requests are cancelled at startup; failed persistence keeps automation paused and preserves existing files. Account index mutations after startup run on a serial executor. Device tests must verify login and switching in both directions, not just identity readiness.
 
 ## Script modules and lifecycle
 
@@ -91,3 +96,7 @@ The map view owns projection, gestures, routes and selection. `MapTileSource` ow
 Python and Node tests are discovered by naming convention, not an allowlist. Test helpers use other names. The gate syntax-checks individual runtime sources and composed bundles. Native offsets, Android rendering, actual game lifecycle and server behavior still require focused device verification.
 
 See [MAINTAINABILITY.md](MAINTAINABILITY.md) for the review findings and staged work.
+
+The signed-out Accounts recovery action deletes only the pinned LoginState DOB and cached age-result PlayerPrefs keys, saves them through Unity, and cold-restarts. It neither supplies a date nor forces an age-check result. The normal game DOB prompt must evaluate the user's input. Metadata evidence is local; native tests assert unrelated preferences survive.
+
+Remembered account sessions are captured only after the old Unity process stops. The helper preserves the three encrypted Niantic credential files and the cached provider choice, then restores the destination session before launching Unity. Normal logout is not used for switching because it revokes the refresh token. The encrypted journal makes interrupted swaps replayable at bootstrap before any game preference cache starts. Session blobs live in no-backup storage, bind their account ID through authenticated encryption, and are excluded from settings export. Unknown accounts start signed out; account identity must match before automation resumes. Focused session transaction tests cover roundtrips, credential rotation, new-account isolation and interrupted completion.

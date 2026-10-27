@@ -34,7 +34,7 @@ public final class GpxStore {
     private final File directory;
 
     public GpxStore(Context context) {
-        directory = new File(context.getApplicationContext().getFilesDir(), "pgrazor-gpx-routes-v1");
+        directory = AccountProfiles.file(context.getApplicationContext(), "pgrazor-gpx-routes-v1");
     }
 
     /** A stored route's identity and a small summary, without its point data. */

@@ -36,15 +36,20 @@ def message(release, role_id=''):
         notes = notes[:2997] + '...'
     assets = release.get('assets', [])
     apk = next((a['browser_download_url'] for a in assets if a.get('name') == 'PGRazor.apk'), None)
+    highlight = next((a['browser_download_url'] for a in assets if a.get('name') == 'release-highlight.png'), None)
     fields = [{'name': 'Download', 'value': '[Install PGRazor.apk](' + apk + ')'}] if apk else []
     # Keep the support link visible even when long release notes are truncated.
     if 'https://ko-fi.com/pgrazor' not in notes:
         fields.append({'name': 'Support development', 'value': '[Ko-fi](https://ko-fi.com/pgrazor) (optional)'})
+    embed = {'title': (release.get('name') or release['tag_name'])[:256],
+             'url': release['html_url'], 'description': notes,
+             'color': 0x35DAB4, 'fields': fields,
+             'footer': {'text': 'PGRazor | ' + kind}}
+    # Optional release highlight screenshot shown inline in the embed when present.
+    if highlight:
+        embed['image'] = {'url': highlight}
     payload = {'username': 'PGRazor Releases', 'allowed_mentions': {'parse': []},
-            'embeds': [{'title': (release.get('name') or release['tag_name'])[:256],
-                        'url': release['html_url'], 'description': notes,
-                        'color': 0x35DAB4, 'fields': fields,
-                        'footer': {'text': 'PGRazor | ' + kind}}]}
+            'embeds': [embed]}
     if role_id:
         payload['content'] = '<@&' + role_id + '> A new PGRazor release is available!'
         payload['allowed_mentions']['roles'] = [role_id]

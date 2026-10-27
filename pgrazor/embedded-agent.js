@@ -300,7 +300,7 @@ function failQuickSummary(reason) {
 function revokeQuickSummary() {
     allowQuickCatchWait(false);
     if (!quickSummary || quickSummaryFailed) return;
-    try { resetSummaryPolicy(); }
+    try { if(quickSummary.setAccountOptions)quickSummary.setAccountOptions(false,''); resetSummaryPolicy(); }
     catch (error) {
         // Keep a failed optional feature from affecting the original Java lifecycle.
         quickSummaryFailed = true;
@@ -355,6 +355,13 @@ function scheduleQuickSummary() {
             const result=quickSummary.start({enabled:true,onEvent(event) {
                 if (disposed || quickSummaryFailed) return;
                 try { Java.performNow(()=>{
+                    if(event.kind==='account-identity'){control.accountIdentity(String(event.id),String(event.name));return;}
+                    if(event.kind==='accounts-ready')control.setAccountsReady(!!event.available);
+                    if(event.kind==='account-session-ended'){revokeQuickBall();control.accountSessionEnded();}
+                    if(event.kind==='account-logout-complete')control.accountLogoutComplete();
+                    if(event.kind==='account-logout-failed')control.accountLogoutFailed();
+                    if(event.kind==='account-login-reset-complete')control.accountSignInResetComplete();
+                    if(event.kind==='account-session-saved')control.accountSessionSaved();
                     if(event.kind!=='routes-snapshot')control.event(bootParameters.quickClose===true?'quick-close':'quick-summary',JSON.stringify(event));
                     if(event.kind==='cooldown-action')control.cooldownAction(event.action);
                     if(event.kind==='cooldown-encounter')control.setCooldownEncounter(event.source);
@@ -558,6 +565,7 @@ function heartbeat() {
                 if(quickSummary.setRocketOptions)quickSummary.setRocketOptions(control.rocketOptions(),control.rocketAllowed());
                 if(quickSummary.setBattleOptions)quickSummary.setBattleOptions(control.battleOptions(),control.battlesAllowed());
                 if(quickSummary.setMapPoiAllowed)quickSummary.setMapPoiAllowed(control.mapPoiAllowed());
+                if(quickSummary.setAccountOptions)quickSummary.setAccountOptions(control.accountManagementAllowed(),String(control.accountCommand()));
                 if(quickSummary.setAdventureSyncAllowed)quickSummary.setAdventureSyncAllowed(control.adventureSyncDismissAllowed());
                 if(quickSummary.setRoutesOptions)quickSummary.setRoutesOptions(control.gameRoutesAllowed(),String(control.gameRoutesCommand()));
                 if(quickSummary.setVgpManualReady&&(quickBallNativeReady||bootParameters.quickBall!==true))quickSummary.setVgpManualReady();

@@ -99,7 +99,7 @@ def main():
     for name in ['PreviewActivity','BootstrapProvider','LogActivity','LogExport','Control','Pad','MotionEngine','RuntimeAbi','MapProjection','WorldMapDialog','SavedPlaces','LocationState','CameraSteering','CameraHeadingState']:
         if not (classes/f'dev/pgrazor/{name}.class').is_file():
             raise RuntimeError(f'Android compilation produced no {name} class. Check SDK access and javac output above.')
-    run('javac','-encoding','UTF-8','-classpath',ANDROID,'-d',BUILD/'tests',ROOT/'src/dev/pgrazor/SavedPlaces.java',ROOT/'test/SavedPlacesValidationTest.java')
+    run('javac','-encoding','UTF-8','-classpath',str(ANDROID)+os.pathsep+str(classes),'-d',BUILD/'tests',ROOT/'src/dev/pgrazor/SavedPlaces.java',ROOT/'test/SavedPlacesValidationTest.java')
     run('java','-cp',BUILD/'tests','SavedPlacesValidationTest')
     jar = BUILD/'controls.jar'
     with zipfile.ZipFile(jar,'w',zipfile.ZIP_DEFLATED) as out:

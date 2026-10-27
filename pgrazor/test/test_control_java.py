@@ -5,6 +5,7 @@ and clock inputs explicitly; device tests remain responsible for scrolling/touch
 Temporary compiler outputs are removed automatically. No Android SDK/device needed.
 """
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -106,6 +107,18 @@ public class NotificationManager {
  public void createNotificationChannel(NotificationChannel channel){}
  public void notify(int id,Notification notification){}
 }''',
+    'dev/pgrazor/AccountProfiles.java': """package dev.pgrazor;
+public class AccountProfiles {
+ public static void init(android.app.Application app){}
+ public static boolean allowed(){return true;}
+ public static java.io.File file(android.app.Application app,String name){return new java.io.File(app.getFilesDir(),name);}
+ public static String command(){return "";}
+ public static void identity(String id,String name){}
+ public static void support(boolean ready){}
+ public static void sessionEnded(){}
+ public static void logoutComplete(){}
+ public static void logoutFailed(){} static void signInResetComplete(){} static void sessionSaved(){}
+}""",
     'dev/pgrazor/Pad.java': '''package dev.pgrazor;
 public class Pad {public final android.app.Activity activity; public Pad(android.app.Activity a){activity=a;} public void close(){} public void confirmStopRoute(){}}''',
     'dev/pgrazor/LogActivity.java': 'package dev.pgrazor; public class LogActivity extends android.app.Activity {}',
@@ -119,6 +132,7 @@ public final class Cooldown {
  public static long remaining=0;
  public static final java.util.List<String> recorded=new java.util.ArrayList<>();
  public static void init(android.app.Application app){}
+ public static void flush() throws java.io.IOException {}
  public static long remaining(){return remaining;}
  public static void record(String action){recorded.add(action);}
 }''',
@@ -160,7 +174,7 @@ class ControlJavaTests(unittest.TestCase):
                 source.write_text(text, encoding='utf-8')
                 sources.append(source)
             sources.extend(ROOT / 'src/dev/pgrazor' / name for name in (
-                'Control.java', 'MotionEngine.java', 'LocationState.java',
+                'Control.java', 'MotionEngine.java', 'LocationState.java', 'GameRoutesController.java',
                 'CameraHeadingState.java', 'CameraSteering.java',
                 'BerryPriority.java', 'MapTapSequence.java', 'CooldownState.java',
                 'VgpController.java', 'CatchOutcomeController.java', 'SettingsWriter.java'))
@@ -169,6 +183,17 @@ class ControlJavaTests(unittest.TestCase):
                             ROOT / 'test/VgpControllerTest.java',ROOT / 'test/CooldownTest.java',
                             ROOT / 'test/ControlSettingsReloadTest.java'])
             classes = work / 'classes'
+            sdk = Path(os.environ.get('ANDROID_HOME', str(Path(os.environ['LOCALAPPDATA']) / 'Android/Sdk')))
+            json_sources = sorted((sdk / 'sources').glob('android-*/org/json'), reverse=True)
+            if not json_sources:
+                self.skipTest('Android SDK JSON sources unavailable')
+            for original in json_sources[0].glob('*.java'):
+                text = original.read_text(encoding='utf-8')
+                text = re.sub(r'^import (?:static )?(?:android\.|libcore\.).*;\s*$', '', text, flags=re.M)
+                text = re.sub(r'@(?:UnsupportedAppUsage|SystemApi|NonNull|Nullable)(?:\([^)]*\))?\s*', '', text)
+                target = work / original.name
+                target.write_text(text, encoding='utf-8')
+                sources.append(target)
             compiled = subprocess.run([str(compiler), '-encoding', 'UTF-8', '-d', str(classes),
                                        *map(str, sources)], capture_output=True, text=True, timeout=30)
             self.assertEqual(compiled.returncode, 0, compiled.stdout + compiled.stderr)

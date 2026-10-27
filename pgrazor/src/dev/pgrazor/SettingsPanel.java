@@ -328,6 +328,8 @@ final class SettingsPanel {
     }
 
     private void buildBackupSection() {
+        Button accounts=button("Accounts");body.addView(accounts);
+        accounts.setOnClickListener(v->AccountsDialog.show(activity));
         Button settingsBackup=button("Export / import settings");body.addView(settingsBackup);
         settingsBackup.setOnClickListener(v->activity.startActivity(new Intent(activity,LogActivity.class).putExtra("settingsBackup",true)));
     }

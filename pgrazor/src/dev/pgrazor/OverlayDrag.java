@@ -34,7 +34,7 @@ public final class OverlayDrag implements View.OnTouchListener {
 
     private OverlayDrag(ViewGroup parent, View view, View follower, String key) {
         this.parent = parent; this.view = view; this.follower = follower; this.key = key;
-        prefs = view.getContext().getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        prefs = AccountProfiles.preferences(view.getContext().getApplicationContext(),PREFS);
         float density = view.getResources().getDisplayMetrics().density;
         threshold = android.view.ViewConfiguration.get(view.getContext()).getScaledTouchSlop(); gap = Math.round(6 * density);
         view.setOnTouchListener(this);

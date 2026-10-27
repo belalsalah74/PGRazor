@@ -106,7 +106,13 @@ jobs:
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
           cat "docs/releases/$RELEASE_TAG.md" docs/releases/footer.md > "$RUNNER_TEMP/release-notes.md"
-          gh release create "$RELEASE_TAG" release/PGRazor.apk release/SHA256SUMS.txt release/build-info.json --target "$RELEASE_COMMIT" --title "PGRazor $RELEASE_TAG" --latest --notes-file "$RUNNER_TEMP/release-notes.md"
+          assets=(release/PGRazor.apk release/SHA256SUMS.txt release/build-info.json)
+          highlight="docs/releases/$RELEASE_TAG-quick-menu.png"
+          if [ -f "$highlight" ]; then
+            cp "$highlight" release/release-highlight.png
+            assets+=(release/release-highlight.png)
+          fi
+          gh release create "$RELEASE_TAG" "${assets[@]}" --target "$RELEASE_COMMIT" --title "PGRazor $RELEASE_TAG" --latest --notes-file "$RUNNER_TEMP/release-notes.md"
   discord:
     needs: release
     uses: ./.github/workflows/discord-release.yml

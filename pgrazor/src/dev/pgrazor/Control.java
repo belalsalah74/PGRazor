@@ -21,6 +21,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Module interface shared by the standalone preview and an instrumented host. */
 public final class Control {
     private static Application hostApplication;
+    public static String accountCommand(){return AccountProfiles.command();}
+    public static boolean accountManagementAllowed(){return foreground && backendReady && connected();}
+    public static void accountIdentity(String id,String name){AccountProfiles.identity(id,name);}
+    public static void setAccountsReady(boolean ready){AccountProfiles.support(ready);}
+    public static void accountSessionEnded(){AccountProfiles.sessionEnded();}
+    public static void accountLogoutComplete(){AccountProfiles.logoutComplete();}
+    public static void accountLogoutFailed(){AccountProfiles.logoutFailed();}
+    public static void accountSignInResetComplete(){AccountProfiles.signInResetComplete();}
+    public static void accountSessionSaved(){AccountProfiles.sessionSaved();}
+    static Activity accountActivity(){return pad==null?null:pad.activity;}
+    static void quiesceAccounts() throws IOException {
+        gameRoutes.stop("Account switch"); gameRoutesPlanning=false; gameRoutes.setPlanning(false); autoWalkPlanning=false;
+        vgp.suspend();
+        mapTapEpoch++; invalidateQuickBallOutcome();
+        engine.stop(); saveState();
+        if(stateWriteFailed)throw new IOException("Location save did not finish");
+    }
+    static void flushAccountWrites() throws IOException { flushSettings(2500); Cooldown.flush(); }
     public static boolean adventureSyncDismissAllowed() {
         Application app=hostApplication;
         return app!=null && hostLive() && desiredEnabled
@@ -684,7 +702,7 @@ public final class Control {
     }
     public static boolean connected() { return !instrumented || android.os.SystemClock.elapsedRealtime() <= leaseDeadline; }
     /** Shared host gate: foreground, with a ready backend whose connection lease is still live. */
-    private static boolean hostLive() { return foreground && backendReady && connected(); }
+    private static boolean hostLive() { return foreground && backendReady && connected() && AccountProfiles.allowed(); }
     public static synchronized void begin(Application app) {
         if (registered) return;
         registered = true;
@@ -699,6 +717,7 @@ public final class Control {
         // Recover recent run tails after a crash without changing or deleting private originals.
         new Thread(() -> recoverRunLogs(app),"pgrazor-log-recovery").start();
         event("session-start", connection);
+        AccountProfiles.init(app);
         loadState(app);
         loadSettings(app);
         Cooldown.init(app);
@@ -818,7 +837,7 @@ public final class Control {
     }
     private static void loadState(Application app) {
         synchronized (stateLock) {
-            stateFile = new AtomicFile(new File(app.getFilesDir(), "pgrazor-location-state-v1.txt"));
+            stateFile = new AtomicFile(AccountProfiles.file(app, "pgrazor-location-state-v1.txt"));
             LocationState state = LocationState.defaults();
             String source = "defaults";
             StrictMode.ThreadPolicy policy = StrictMode.allowThreadDiskReads();
@@ -856,7 +875,7 @@ public final class Control {
             if(settingsFile==null) {
                 // Create the destination and its writer once so the sink can close over a stable
                 // target; the file path never changes within a process.
-                settingsFile=new AtomicFile(new File(app.getFilesDir(),"pgrazor-settings-v1.properties"));
+                settingsFile=new AtomicFile(AccountProfiles.file(app,"pgrazor-settings-v1.properties"));
                 final AtomicFile target=settingsFile;
                 settingsWriter=new SettingsWriter(settingsIo,snapshot->writeSettings(target,snapshot),
                                                   error->event("settings-save-error",error.toString()));
@@ -1030,7 +1049,8 @@ public final class Control {
         }catch(IOException|RuntimeException error){event("log-recovery-error",error.toString());}
     }
     public static File currentLog() { return logFile; }
-    public static boolean active() { return desiredEnabled && hostLive() && engine.enabled; }
+    // The staged profile's stationary fix is needed before login/map identity is available.
+    public static boolean active() { return desiredEnabled && foreground && backendReady && connected() && engine.enabled; }
     public static double latitude() { latitudeReads++; return currentLatitude(); }
     public static double longitude() { longitudeReads++; return currentLongitude(); }
     public static float speed() { return (float)engine.metersPerSecond(); }

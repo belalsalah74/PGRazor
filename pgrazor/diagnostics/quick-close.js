@@ -161,7 +161,7 @@ const BUDDY_CODE={"7757.OnMapRemainingSec": [180184056, "fe57bea9f44f01a9d42702b
 
 const BERRY_THROW_CODE={"btdx": [181423396, "fe67bca9f85f01a9f65702a9f44f03a9551e02f0f403012a"], "btdy": [181424920, "e80f1cfcfe0700f9f85f01a9f65702a9f44f03a9551e02d0"], "btdz": [181425904, "fe57bea9f44f01a9080840f9280500b4141e02f013fd40f9"], "get_HoldingBreadBall": [181757284, "00004939c0035fd601000939c0035fd6ff0301d1e80b00fd"], "get_BallType": [181765900, "007443b9c0035fd6017403b9c0035fd6e1031faaae05b414"], "submit": [181795804, "fe5fbda9f65701a9f44f02a9961b0290f50302aaf40301aa"], "peek": [181764464, "fe0f1df8f65701a9f44f02a9b41b02f0f30300aa88866239"]};
 
-const SPEC={field_set_value_object:['void',['pointer','pointer','pointer']],object_new:['pointer',['pointer']],field_set_value:['void',['pointer','pointer','pointer']],object_get_virtual_method:['pointer',['pointer','pointer']],class_get_methods:['pointer',['pointer','pointer']],string_length:['int',['pointer']],string_chars:['pointer',['pointer']],class_get_nested_types:['pointer',['pointer','pointer']],class_get_declaring_type:['pointer',['pointer']],domain_get:['pointer',[]],domain_get_assemblies:['pointer',['pointer','pointer']],assembly_get_image:['pointer',['pointer']],class_from_name:['pointer',['pointer','pointer','pointer']],class_get_type:['pointer',['pointer']],class_get_field_from_name:['pointer',['pointer','pointer']],field_get_type:['pointer',['pointer']],field_get_flags:['int',['pointer']],field_get_parent:['pointer',['pointer']],field_get_offset:['size_t',['pointer']],class_get_method_from_name:['pointer',['pointer','pointer','int']],method_get_class:['pointer',['pointer']],method_get_name:['pointer',['pointer']],method_get_flags:['uint32',['pointer','pointer']],method_get_param_count:['uint32',['pointer']],method_get_param:['pointer',['pointer','uint32']],method_get_return_type:['pointer',['pointer']],method_is_generic:['bool',['pointer']],method_is_inflated:['bool',['pointer']],class_from_type:['pointer',['pointer']],class_is_enum:['bool',['pointer']],class_enum_basetype:['pointer',['pointer']],class_is_valuetype:['bool',['pointer']],class_value_size:['int',['pointer','pointer']],field_static_get_value:['void',['pointer','pointer']],type_get_name:['pointer',['pointer']],free:['void',['pointer']],thread_current:['pointer',[]],thread_attach:['pointer',['pointer']],thread_detach:['void',['pointer']],object_get_class:['pointer',['pointer']],field_get_value:['void',['pointer','pointer','pointer']],runtime_invoke:['pointer',['pointer','pointer','pointer','pointer']],object_unbox:['pointer',['pointer']],gchandle_new:['pointer',['pointer','bool']],gchandle_get_target:['pointer',['pointer']],gchandle_free:['void',['pointer']]};
+const SPEC={string_new:['pointer',['pointer']],field_set_value_object:['void',['pointer','pointer','pointer']],object_new:['pointer',['pointer']],field_set_value:['void',['pointer','pointer','pointer']],object_get_virtual_method:['pointer',['pointer','pointer']],class_get_methods:['pointer',['pointer','pointer']],string_length:['int',['pointer']],string_chars:['pointer',['pointer']],class_get_nested_types:['pointer',['pointer','pointer']],class_get_declaring_type:['pointer',['pointer']],domain_get:['pointer',[]],domain_get_assemblies:['pointer',['pointer','pointer']],assembly_get_image:['pointer',['pointer']],class_from_name:['pointer',['pointer','pointer','pointer']],class_get_type:['pointer',['pointer']],class_get_field_from_name:['pointer',['pointer','pointer']],field_get_type:['pointer',['pointer']],field_get_flags:['int',['pointer']],field_get_parent:['pointer',['pointer']],field_get_offset:['size_t',['pointer']],class_get_method_from_name:['pointer',['pointer','pointer','int']],method_get_class:['pointer',['pointer']],method_get_name:['pointer',['pointer']],method_get_flags:['uint32',['pointer','pointer']],method_get_param_count:['uint32',['pointer']],method_get_param:['pointer',['pointer','uint32']],method_get_return_type:['pointer',['pointer']],method_is_generic:['bool',['pointer']],method_is_inflated:['bool',['pointer']],class_from_type:['pointer',['pointer']],class_is_enum:['bool',['pointer']],class_enum_basetype:['pointer',['pointer']],class_is_valuetype:['bool',['pointer']],class_value_size:['int',['pointer','pointer']],field_static_get_value:['void',['pointer','pointer']],type_get_name:['pointer',['pointer']],free:['void',['pointer']],thread_current:['pointer',[]],thread_attach:['pointer',['pointer']],thread_detach:['void',['pointer']],object_get_class:['pointer',['pointer']],field_get_value:['void',['pointer','pointer','pointer']],runtime_invoke:['pointer',['pointer','pointer','pointer','pointer']],object_unbox:['pointer',['pointer']],gchandle_new:['pointer',['pointer','bool']],gchandle_get_target:['pointer',['pointer']],gchandle_free:['void',['pointer']]};
 
 // Unity-thread identity/tick: match il2cpp_runtime_invoke whose first argument is the
 
@@ -1066,6 +1066,24 @@ function install(s,p){
 
  function releaseRecord(r){restoreCatchCanvas(r);for(const k of['gui','state','response','proto','dismissed','data','pokemon','service','transferBag','transferPromise','vgpBag','vgpGm']){if(r[k]){try{freeHandle(r[k]);}catch(e){fault(s,e);}r[k]=null;}}}
 
+ try {
+  s.accounts=PGRazorAccounts.create({api,module:p.module,Memory,ptr,Interceptor,now:()=>s.now(),hold,target,freeHandle,invoke,exact,unity,
+   event:(kind,fields)=>event(s,kind,fields),addListener:l=>s.listeners.push(l),
+   resolve:k=>{
+    if(!p.items||!p.items.lookup)throw Error('account-container-unavailable');
+    const l=p.items.lookup,roots=[],own=o=>{if(!o.isNull())roots.push(hold(o));return o;};
+    try{
+     const map=own(invoke(l.find.method,ptr(0),itemArgs([l.typeObject(api.class_get_type(l.map))])));
+     if(map.isNull())return ptr(0);
+     const container=own(invoke(l.container.method,map));
+     // The scene object is visible before Zenject installs its container.
+     // A null native instance call crashes the process, outside JS try/catch.
+     if(container.isNull())return ptr(0);
+     return invoke(l.resolve.method,container,itemArgs([l.typeObject(api.class_get_type(k))]));
+    }finally{for(const r of roots)freeHandle(r);}
+   }});
+ }catch(e){event(s,'accounts-ready',{available:false,reason:String(e)});}
+
  try { s.adventureSync=PGRazorAdventureSync.create({api,module:p.module,Memory,ptr,Interceptor,
   now:()=>s.now(),hold,target,freeHandle,invoke,exact,unity,
   event:(kind,fields)=>event(s,kind,fields),addListener:l=>s.listeners.push(l)}); }
@@ -1163,6 +1181,8 @@ function install(s,p){
  function cleanupTick(tid){if(s.busy)return;s.busy=true;
 
   try{if(!unity(tid))return;let now;try{now=s.now();}catch(e){fault(s,e);for(const r of s.records.splice(0))releaseRecord(r);if(s.openerDepth===0)for(const h of s.ownedHandles){try{freeHandle(h);}catch(e){fault(s,e);}}return;}
+
+   if(s.accounts)try{s.accounts.tick(now,tid);}catch(e){event(s,"accounts-tick-error",{reason:String(e)});}
 
    giftTick(now);
 
@@ -1893,6 +1913,7 @@ function setItemOptions(enabled,rules,allowed){const s=running;if(!s||!s.ready||
 // Bridge entry for the native Routes module. allowed is a fresh foreground lease
 // for an open Routes modal or active walking; commandJson is the JSON command.
 // setRoutesOptions(false,...) cannot execute new actions; roots clean up on tick.
+function setAccountOptions(allowed,command){const s=running;if(s&&s.active&&!s.stopping&&s.accounts)s.accounts.setOptions(allowed===true,command);}
 function setAdventureSyncAllowed(allowed){const s=running;if(s&&s.active&&!s.stopping&&s.adventureSync)s.adventureSync.setAllowed(allowed===true);}
 function setRoutesOptions(allowed,commandJson){const s=running;if(!s||!s.ready||s.stopping||!s.routes)return false;
  try{return s.routes.setOptions(allowed===true,commandJson);}catch(e){event(s,'routes-options-error',{reason:String(e)});return false;}}
@@ -1905,6 +1926,6 @@ function setTransferOptions(enabled,protect,dismiss,keepSpecies='',keepAll=false
  if(s.transferEnabled!==next||s.protect!==mask||s.keepConfig!==config||s.keepAll!==keep)s.epoch++;
  s.transferEnabled=next;s.protect=mask;s.keepSpecies=ids;s.keepConfig=config;s.keepAll=keep;s.dismissEnabled=dismiss===true;return ids!==null;}
 
-const api=Object.freeze({start,setIncubatorOptions,setMapPoiAllowed,setVgpOptions,setVgpManualReady,setAllowed,setSpinAllowed,setTransferOptions,setItemOptions,setRocketOptions,setBattleOptions,setBerryOptions,setBerryImpactReady,setSpawnOptions,setGiftOptions,setBuddyOptions,setRoutesOptions,setAdventureSyncAllowed,transferDecision,transferKeepSet,transferKeepReason,stop});root.PGRazorQuickClose=api;return api;
+const api=Object.freeze({start,setIncubatorOptions,setMapPoiAllowed,setVgpOptions,setVgpManualReady,setAllowed,setSpinAllowed,setTransferOptions,setItemOptions,setRocketOptions,setBattleOptions,setBerryOptions,setBerryImpactReady,setSpawnOptions,setGiftOptions,setBuddyOptions,setRoutesOptions,setAccountOptions,setAdventureSyncAllowed,transferDecision,transferKeepSet,transferKeepReason,stop});root.PGRazorQuickClose=api;return api;
 
 })(globalThis);

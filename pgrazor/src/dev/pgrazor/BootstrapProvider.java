@@ -20,7 +20,12 @@ public final class BootstrapProvider extends ContentProvider {
         }
         Application app=(Application)appContext;
         if(!Application.getProcessName().equals(context.getApplicationInfo().processName)) return true;
+        // Finish an interrupted auth swap before Unity caches any credentials or preferences.
+        boolean sessionRecovered;
+        try { sessionRecovered=AccountSessions.recover(context); }
+        catch(IOException failure) { throw new IllegalStateException("Saved account session could not be restored; game startup stopped",failure); }
         Control.embedded("Embedded controls - starting"); Control.begin(app);
+        if(!sessionRecovered)Control.event("account-session-recovery","Interrupted session could not be restored; sign in again. Saved profiles preserved.");
         Control.event("bootstrap", "pid="+android.os.Process.myPid()+" uid="+android.os.Process.myUid()+" process="+Application.getProcessName());
         // Native initialization must not block ContentProvider startup or the main thread.
         new Thread(() -> load(context),"pgrazor-loader").start();

@@ -11,7 +11,10 @@ PROVIDER = 'dev.pgrazor.BootstrapProvider'
 LOG_ACTIVITY = 'dev.pgrazor.LogActivity'
 GOOGLE_AUTH_ACTIVITY = 'dev.pgrazor.GoogleAuthActivity'
 GOOGLE_AUTH_SCHEME = 'com.googleusercontent.apps.848232511240-dmrj3gba506c9svge2p9gq35p1fg654p'
+RESTART_ACTIVITY = 'dev.pgrazor.AccountRestartActivity'
+RESTART_PROCESS = ':pgrazor_restart'
 ATTR_IDS = {'name': 0x01010003, 'exported': 0x01010010, 'authorities': 0x01010018}
+RESTART_ATTR_IDS = {'name': 0x01010003, 'exported': 0x01010010, 'process': 0x01010011}
 
 
 def add_google_browser_callback(data):
@@ -367,4 +370,99 @@ def patch_manifest(data):
     if not any(qualified(activity['name']) == LOG_ACTIVITY and activity['exported'] is False
                for activity in verified['activities']):
         raise ValueError('Activity verification failed')
+    return result
+
+
+def add_account_restart_activity(data):
+    """Append an unexported AccountRestartActivity on a private :pgrazor_restart process.
+
+    The helper performs cold-process account switches in isolation, so it is declared
+    exported="false" with android:process=":pgrazor_restart" and no intent-filter. A
+    conflicting preexisting activity of the same name (exported, wrongly scoped/missing
+    process, or carrying an intent-filter) is rejected; an exactly-matching safe definition
+    is accepted and the manifest returned unchanged. Rejects split manifests. Append-only:
+    existing components, strings and resource ids are preserved.
+    """
+    info = inspect_manifest(data)
+    if info['split']: raise ValueError('A base APK is required; split manifest supplied')
+    if info['applications'] != 1: raise ValueError('Expected exactly one application')
+    def qualified(name):
+        if not isinstance(name, str): return name
+        if name.startswith('.'): return info['package']+name
+        return info['package']+'.'+name if '.' not in name else name
+    header_size, chunks, pool, maps, resources = _parse(data)
+    existing = False
+    current = None
+    for _, event, name, attrs, depth in _walk(chunks, pool):
+        if event == 'start' and name == 'activity':
+            current = {'name': attrs.get((ANDROID_NS, 'name')),
+                       'exported': attrs.get((ANDROID_NS, 'exported')),
+                       'process': attrs.get((ANDROID_NS, 'process')),
+                       'depth': depth, 'filter': False}
+        elif event == 'start' and name == 'intent-filter' and current is not None:
+            current['filter'] = True
+        if event != 'end' or name != 'activity' or current is None: continue
+        activity = current
+        current = None
+        if qualified(activity['name']) != RESTART_ACTIVITY: continue
+        if (existing or activity['exported'] is not False or activity['filter'] or activity['depth'] != 2
+                or activity['process'] != RESTART_PROCESS):
+            raise ValueError('Conflicting account restart activity; it must be unexported on '
+                             + RESTART_PROCESS + ' with no intent-filter')
+        existing = True
+    if existing:
+        # An exactly-matching safe definition is already present (e.g. our preview manifest); leave it.
+        return data
+    ends = [i for i, event, name, _, depth in _walk(chunks, pool)
+            if event == 'end' and name == 'application' and depth == 1]
+    if len(ends) != 1: raise ValueError('Application end not found')
+    insert = ends[0]
+    ns = pool.add(ANDROID_NS)
+    prefix = pool.add('android')
+    activity_element = pool.add('activity')
+    activity_name = pool.add(RESTART_ACTIVITY)
+    process_value = pool.add(RESTART_PROCESS)
+    names = {}
+    for key, resource_id in RESTART_ATTR_IDS.items():
+        names[key] = next((i for i, value in enumerate(pool.strings)
+                           if value == key and i < len(resources) and resources[i] == resource_id), None)
+        if names[key] is None:
+            names[key] = len(pool.strings)
+            pool.strings.append(key)
+            resources.extend([0]*(names[key]+1-len(resources)))
+            resources[names[key]] = resource_id
+    line = _u32(chunks[insert][1], 8)
+    def node(kind, payload):
+        return struct.pack('<HHIII', kind, 16, 16+len(payload), line, NO_INDEX)+payload
+    attributes = struct.pack('<IIIHBBI', ns, names['name'], activity_name, 8, 0, 3, activity_name)
+    attributes += struct.pack('<IIIHBBI', ns, names['exported'], NO_INDEX, 8, 0, 0x12, 0)
+    attributes += struct.pack('<IIIHBBI', ns, names['process'], process_value, 8, 0, 3, process_value)
+    activity_start = node(0x102, struct.pack('<IIHHHHHH', NO_INDEX, activity_element, 20, 20, 3, 0, 0, 0)+attributes)
+    # Scope our namespace locally so this works with or without an existing android declaration.
+    additions = [node(0x100, struct.pack('<II', prefix, ns)), activity_start,
+                 node(0x103, struct.pack('<II', NO_INDEX, activity_element)),
+                 node(0x101, struct.pack('<II', prefix, ns))]
+    map_bytes = struct.pack('<HHI', 0x180, 8, 8+4*len(resources))+struct.pack('<'+'I'*len(resources), *resources)
+    output = []
+    for i, (kind, raw) in enumerate(chunks):
+        if i == insert: output.extend(additions)
+        if i == 0:
+            output.append(pool.build())
+            if not maps: output.append(map_bytes)
+        elif kind == 0x180: output.append(map_bytes)
+        else: output.append(raw)
+    outer = bytearray(data[:header_size])
+    body = b''.join(output)
+    struct.pack_into('<I', outer, 4, len(outer)+len(body))
+    result = bytes(outer)+body
+    inspect_manifest(result)
+    _, verified_chunks, verified_pool, _, _ = _parse(result)
+    confirmed = False
+    for _, event, name, attrs, depth in _walk(verified_chunks, verified_pool):
+        if (event == 'start' and name == 'activity' and depth == 2
+                and qualified(attrs.get((ANDROID_NS, 'name'))) == RESTART_ACTIVITY
+                and attrs.get((ANDROID_NS, 'exported')) is False
+                and attrs.get((ANDROID_NS, 'process')) == RESTART_PROCESS):
+            confirmed = True
+    if not confirmed: raise ValueError('Account restart activity verification failed')
     return result

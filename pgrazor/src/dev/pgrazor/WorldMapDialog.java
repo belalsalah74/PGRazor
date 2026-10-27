@@ -94,7 +94,7 @@ public final class WorldMapDialog {
         TextView status = label(ui, "Loading map…", 12);
         MapView map = new MapView(activity, latitude, longitude, selected, status);
         LinearLayout layers=new LinearLayout(ui);
-        SharedPreferences preferences=activity.getSharedPreferences("pgrazor-map",0);
+        SharedPreferences preferences=AccountProfiles.preferences(activity,"pgrazor-map");
         String[] names={"Stops","Gyms","Raids"};
         for(int i=0;i<names.length;i++){
             final int bit=1<<i;CheckBox toggle=new CheckBox(ui);toggle.setText(names[i]);toggle.setTextSize(13);

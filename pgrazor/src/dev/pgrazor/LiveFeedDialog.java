@@ -113,7 +113,7 @@ public final class LiveFeedDialog {
 
         Controller(Activity activity, Context ui, AlertDialog dialog, LinearLayout root) {
             this.activity = activity; this.ui = ui; this.dialog = dialog; this.root = root;
-            prefs = activity.getSharedPreferences("pgrazor-livefeed", Context.MODE_PRIVATE);
+            prefs = AccountProfiles.preferences(activity,"pgrazor-livefeed");
             categoryIndex = clamp(prefs.getInt("category", 0), 0, CATEGORIES.length - 1);
             radiusIndex = clamp(prefs.getInt("radius", 1), 0, RADII.length - 1);
             myShinies = prefs.getBoolean("myShinies", false);

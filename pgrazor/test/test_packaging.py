@@ -430,6 +430,7 @@ class PackageTests(unittest.TestCase):
                  patch.object(runtime_assets,'java_bridge',return_value=bridge), \
                  patch.object(axml,'inspect_manifest',return_value=info), \
                  patch.object(axml,'patch_manifest',side_effect=lambda data:data), \
+                 patch.object(axml,'add_account_restart_activity',side_effect=lambda data:data), \
                  contextlib.redirect_stdout(io.StringIO()):
                 cases=[{}]+[{name:True} for name in ('il2cpp_survey','camera_probe','camera_sample','camera_steering','scene_probe','scene_observe','interaction_probe','quick_summary','quick_ball')]
                 cases.append({'camera_steering':True,'interaction_probe':True})

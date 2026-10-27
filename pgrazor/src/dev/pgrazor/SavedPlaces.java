@@ -44,7 +44,7 @@ public final class SavedPlaces {
         Snapshot(List<Entry> entries, boolean damaged) { this.entries = Collections.unmodifiableList(entries); this.damaged = damaged; }
     }
 
-    public SavedPlaces(Context context) { preferences = context.getApplicationContext().getSharedPreferences("pgrazor-saved-places-v1", Context.MODE_PRIVATE); }
+    public SavedPlaces(Context context) { preferences = AccountProfiles.preferences(context.getApplicationContext(),"pgrazor-saved-places-v1"); }
 
     public synchronized Snapshot read() {
         List<Entry> entries = new ArrayList<>();

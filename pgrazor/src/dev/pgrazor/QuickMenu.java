@@ -28,10 +28,11 @@ public final class QuickMenu {
         void onFeeds();
         void onFavorites();
         void onTeleport();
+        void onAccounts();
         void onSettings();
     }
 
-    static final int MAP = 0, WALK = 1, AUTOWALK = 2, FEEDS = 3, FAVORITES = 4, TELEPORT = 5, SETTINGS = 6;
+    static final int MAP = 0, WALK = 1, AUTOWALK = 2, FEEDS = 3, FAVORITES = 4, TELEPORT = 5, ACCOUNTS = 6, SETTINGS = 7;
 
     private final Activity activity;
     private final Listener listener;
@@ -60,6 +61,7 @@ public final class QuickMenu {
         card.addView(row(FEEDS, "Feeds", true, listener::onFeeds));
         card.addView(row(FAVORITES, "Favorites", true, listener::onFavorites));
         card.addView(row(TELEPORT, "Teleport", true, listener::onTeleport));
+        card.addView(row(ACCOUNTS, "Switch account", true, listener::onAccounts));
         card.addView(row(SETTINGS, "Settings", true, listener::onSettings));
         root.addView(card, new FrameLayout.LayoutParams(dp(196), -2));
 
@@ -193,6 +195,16 @@ public final class QuickMenu {
                     paint.setStyle(Paint.Style.FILL);
                     Path nav = new Path(); nav.moveTo(12, 3.5f); nav.lineTo(19.5f, 19.5f); nav.lineTo(12, 15.5f); nav.lineTo(4.5f, 19.5f); nav.close();
                     canvas.drawPath(nav, paint);
+                    break;
+                }
+                case ACCOUNTS: {
+                    // A person glyph paired with circular switch arrows: identity plus "change account".
+                    paint.setStyle(Paint.Style.FILL); canvas.drawCircle(9, 7.5f, 3f, paint);
+                    Path body = new Path(); body.addArc(new RectF(3, 11, 15, 23), 180, 180); body.lineTo(15, 18); body.lineTo(3, 18); body.close();
+                    canvas.drawPath(body, paint);
+                    paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(1.8f);
+                    canvas.drawArc(new RectF(14, 6, 22, 14), -70, 200, false, paint);
+                    Path tip = new Path(); tip.moveTo(14.4f, 7.2f); tip.lineTo(16.2f, 4.6f); tip.lineTo(18.3f, 7f); canvas.drawPath(tip, paint);
                     break;
                 }
                 case SETTINGS: {

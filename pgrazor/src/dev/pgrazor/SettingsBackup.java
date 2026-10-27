@@ -72,12 +72,12 @@ final class SettingsBackup {
         JSONObject settings=new JSONObject();Properties p=Control.exportSettings();
         for(String key:SettingsBackupRules.SETTINGS)if(p.containsKey(key))settings.put(key,p.getProperty(key));result.put("settings",settings);
         JSONObject prefs=new JSONObject();for(int i=0;i<SCOPES.length;i++){
-            Map<String,?> all=context.getSharedPreferences(SCOPES[i],0).getAll();JSONObject group=new JSONObject();
+            Map<String,?> all=AccountProfiles.preferences(context,SCOPES[i]).getAll();JSONObject group=new JSONObject();
             for(String key:KEYS[i])if(all.containsKey(key))group.put(key,all.get(key));prefs.put(SCOPES[i],group);
         }result.put("preferences",prefs);SettingsBackupRules.validate(result);return result;
     }
     private static void writeGroup(Context c,String scope,JSONObject data,String[] keys)throws Exception{
-        SharedPreferences.Editor edit=c.getSharedPreferences(scope,0).edit();for(String key:keys)edit.remove(key);
+        SharedPreferences.Editor edit=AccountProfiles.preferences(c,scope).edit();for(String key:keys)edit.remove(key);
         for(String key:keys)if(data.has(key)){
             Object value=data.get(key);
             if(value instanceof Boolean)edit.putBoolean(key,(Boolean)value);

@@ -19,8 +19,13 @@ public final class Cooldown {
     private static final Handler main=new Handler(Looper.getMainLooper());
     private static final Map<String,String> countries=new ConcurrentHashMap<>();
     private static AtomicFile file; private static long nextId; private static Context context;
-    public static synchronized void init(Context app){context=app.getApplicationContext();file=new AtomicFile(new File(app.getFilesDir(),"cooldown-history.txt"));try{state.decode(new String(file.readFully(),StandardCharsets.UTF_8));for(CooldownState.Entry e:state.rows)nextId=Math.max(nextId,e.id);}catch(IOException ignored){}}
-    private static void save(){final String data=state.encode();final AtomicFile f=file;if(f==null)return;io.execute(()->{FileOutputStream out=null;try{out=f.startWrite();out.write(data.getBytes(StandardCharsets.UTF_8));f.finishWrite(out);}catch(IOException e){if(out!=null)f.failWrite(out);Control.event("cooldown-save-error",e.toString());}});}
+    private static volatile IOException writeFailure;
+    public static synchronized void init(Context app){context=app.getApplicationContext();file=new AtomicFile(AccountProfiles.file(app,"cooldown-history.txt"));try{state.decode(new String(file.readFully(),StandardCharsets.UTF_8));for(CooldownState.Entry e:state.rows)nextId=Math.max(nextId,e.id);}catch(IOException ignored){}}
+    static void flush() throws IOException {
+        try {io.submit(()->{}).get(2500,TimeUnit.MILLISECONDS);if(writeFailure!=null)throw writeFailure;}
+        catch(Exception error){throw new IOException("Cooldown save did not finish",error);}
+    }
+    private static void save(){final String data=state.encode();final AtomicFile f=file;if(f==null)return;io.execute(()->{FileOutputStream out=null;try{out=f.startWrite();out.write(data.getBytes(StandardCharsets.UTF_8));f.finishWrite(out);writeFailure=null;}catch(IOException e){writeFailure=e;if(out!=null)f.failWrite(out);Control.event("cooldown-save-error",e.toString());}});}
     public static synchronized void record(String action){double lat=Control.currentLatitude(),lon=Control.currentLongitude();if(!CooldownState.valid(lat,lon))return;long now=System.currentTimeMillis();if(!state.rows.isEmpty()){CooldownState.Entry last=state.rows.get(0);if(action.equals("Gym battle")&&last.action.equals(action)&&CooldownState.distance(lat,lon,last.lat,last.lon)<0.01&&now-last.time<60000){state.rows.set(0,new CooldownState.Entry(last.id,now,lat,lon,action));if(now/5000!=last.time/5000)save();return;}if(last.action.equals(action)&&now-last.time<1500&&CooldownState.distance(lat,lon,last.lat,last.lon)<0.01)return;}state.add(new CooldownState.Entry(++nextId,now,lat,lon,action));save();}
     public static synchronized long remaining(){if(!Control.locationKnown())return 0;return state.remaining(System.currentTimeMillis(),Control.currentLatitude(),Control.currentLongitude());}
     public static synchronized String label(){if(!Control.locationKnown())return "Waiting for GPS";if(state.rows.isEmpty())return "History  --:--";long seconds=(remaining()+999)/1000;return String.format(Locale.US,"Est. %d:%02d:%02d",seconds/3600,(seconds/60)%60,seconds%60);}

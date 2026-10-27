@@ -121,6 +121,9 @@ def rewrite_apk(source,destination,*,base=False,dex=None,assets=None,preview=Fal
             if base and item.filename=='AndroidManifest.xml':
                 manifest=axml.patch_manifest(original.read(item))
                 if google_browser_login: manifest=axml.add_google_browser_callback(manifest)
+                # Cold-process account switches need the isolated restart helper in every base build;
+                # an exactly-matching definition (our preview manifest) is accepted and left unchanged.
+                manifest=axml.add_account_restart_activity(manifest)
                 output.writestr(copy.copy(item),manifest); continue
             with original.open(item) as reader,output.open(copy.copy(item),'w') as writer: shutil.copyfileobj(reader,writer)
         if base:

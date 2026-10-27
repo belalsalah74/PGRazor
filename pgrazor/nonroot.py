@@ -360,8 +360,8 @@ def main(argv=None):
         parser.error('--interaction-probe can only run alone or with --camera-steering')
     if args.quick_summary and (args.il2cpp_survey or args.scene_probe or args.scene_observe or args.camera_sample or (args.camera_probe and not args.camera_steering)):
         parser.error('--quick-summary can combine with camera steering and interaction probe only')
-    if args.quick_ball and (args.il2cpp_survey or args.scene_probe or args.scene_observe or args.camera_sample or (args.camera_probe and not args.camera_steering)):
-        parser.error('--quick-ball can combine with camera steering, interaction probe and quick summary only')
+    if (args.quick_ball or args.shiny_scanner) and (args.il2cpp_survey or args.scene_probe or args.scene_observe or args.camera_sample or (args.camera_probe and not args.camera_steering)):
+        parser.error('--quick-ball/--shiny-scanner can combine with camera steering, interaction probe and quick summary only')
     if args.camera_sample and args.il2cpp_survey: parser.error('--camera-sample cannot be used with --il2cpp-survey')
     if args.camera_steering and args.il2cpp_survey: parser.error('--camera-steering cannot be used with --il2cpp-survey')
     if args.camera_steering and args.camera_sample: parser.error('--camera-steering cannot be used with --camera-sample')

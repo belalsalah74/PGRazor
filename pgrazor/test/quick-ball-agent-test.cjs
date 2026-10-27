@@ -2,7 +2,11 @@
 const source=require('./script-bundle.cjs')('embedded-agent.js');
 function fixture(fault={}) {
  const timers=new Map(),events=[],methods={},order=[],features={},outcomes=[];let id=0,beat,foreground=true,connected=true;
+ const scannerCalls=[];
  const control={connect(){connected=true;},renewLease(){},active:()=>false,embedded(){},event(...e){events.push(e);},
+  setShinyScannerReady(...a){scannerCalls.push(['ready',...a]);},setShinyScannerStatus(...a){scannerCalls.push(['status',...a]);},
+  shinyScannerFound(...a){scannerCalls.push(['found',...a]);},setShinyScannerMapVisible(...a){scannerCalls.push(['map',...a]);},
+  shinyScannerEnabled:()=>true,shinyScannerAllowed:()=>true,latitude:()=>42.65,longitude:()=>23.34,
   quickBallOutcome(o){if(fault.outcomeThrows)throw Error('toast failed');outcomes.push(o);return true;}};
  control.setBerryReady=()=>{};control.setThrowArReady=()=>{};control.setThrowReady=()=>{};control.setMapTapReady=()=>{};control.throwAllowed=()=>false;control.mapTapAllowed=()=>false;
  const originals={setTransferKeepAll(){},setTransferKeepSpecies(){},selectBerryPriority(){},setAutoBerry(){},setEncounterBerryEnabled(){},setMapTapMode(){},setThrowGrade(){},setThrowCurve(){},setThrowAlwaysHit(){},suspendForBackground(){foreground=false;return 'background';},disconnect(){connected=false;return 'disconnect';}};
@@ -32,7 +36,7 @@ function fixture(fault={}) {
   if(name.includes('quick-summary')||name.includes('quick-close'))return features.Summary.api;return java;
  }},setImmediate:f=>f(),setInterval:f=>{beat=f;return 10;},clearInterval(){},setTimeout(f,ms){timers.set(++id,{f,ms});return id;},clearTimeout:id=>timers.delete(id)};
  vm.runInNewContext(source,context);
- return {control,context,features,methods,events,timers,order,outcomes,fault,beat:()=>beat(),init(both=false,close=false){context.rpc.exports.init('early',{quickBall:true,quickBallGameplay:true,quickBallPath:'ball',...(both?{quickSummary:true,quickSummaryPath:'summary',quickClose:close}:{})});},
+ return {control,context,features,methods,events,timers,order,outcomes,scannerCalls,fault,beat:()=>beat(),init(both=false,close=false,scannerOnly=false){context.rpc.exports.init('early',{quickBall:true,quickBallGameplay:!scannerOnly,shinyScanner:scannerOnly,quickBallPath:'ball',...(both?{quickSummary:true,quickSummaryPath:'summary',quickClose:close}:{})});},
   fire(ms=1500){for(const [id,t] of [...timers]){assert.equal(t.ms,ms);timers.delete(id);t.f();}},
   ready(){features.Ball.options.onEvent({kind:'metadata-ready'});},enable(){control.setQuickBallEnabled(true);},
   async dispose(){const p=context.rpc.exports.dispose();if(features.Ball.resolveStop)features.Ball.resolveStop();await p;}};
@@ -97,6 +101,13 @@ async function main(){
  assert(status.order.includes('original:disconnect'),'Optional status failure cannot skip disconnect');
  assert.equal(status.features.Summary.stopCount,1);assert.equal(status.features.Ball.stopCount,1);
  status.features.Ball.resolveStop();await pending;assert(done);
- console.log('PASS: quick-ball default OFF, metadata readiness, immediate revoke, shared lifecycle coexistence, isolated failure, awaited native restoration, and whitelisted outcome forwarding');
+ const scanner=fixture();scanner.init(false,false,true);scanner.fire();
+ assert.equal(scanner.features.Ball.configured,false,'Scanner-only mode must not configure Quick Ball gameplay');
+ scanner.ready();scanner.beat();assert.equal(scanner.features.Ball.ready,false,'Scanner-only mode must not mark Quick Ball ready');
+ assert.ok(scanner.features.Ball.scannerOptions,'Scanner gets its own heartbeat options');
+ scanner.features.Ball.options.onEvent({kind:'shiny-ready',available:true});
+ assert(scanner.scannerCalls.some(c=>c[0]==='ready'&&c[1]===true),'Scanner readiness is forwarded independently');
+ await scanner.dispose();
+ console.log('PASS: quick-ball and scanner-only lifecycle, default OFF, metadata readiness, immediate revoke, isolated failure, awaited cleanup, and outcome forwarding');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

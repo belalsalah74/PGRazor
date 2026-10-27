@@ -221,6 +221,63 @@ public final class Control {
     public static String incubatorStatus(){return incubatorStatus;}
     public static boolean incubatorAvailable(){return incubatorReady&&itemAccessAllowed();}
     public static boolean incubatorAllowed(){long age=SystemClock.elapsedRealtime()-buddyMapSample;return autoIncubate&&incubatorAvailable()&&buddyMapSample>0&&age>=0&&age<1500;}
+    // Shiny Scanner: a persisted enable preference and a runtime ready flag stay here at the bridge
+    // boundary; the runtime status text and the (never-persisted) found-shiny result are owned by
+    // ShinyScannerController so this state has a single home. UI reads only through the accessors below.
+    private static volatile boolean shinyScannerEnabled, shinyScannerReady;
+    private static final ShinyScannerController shinyScanner = new ShinyScannerController(
+        Control::currentLatitude, Control::currentLongitude, detail -> event("shiny-scanner-found",detail));
+    public static boolean shinyScannerEnabled(){return shinyScannerEnabled;}
+    /** Persisted toggle (default off); turning it off drops the runtime result immediately. */
+    public static void setShinyScannerEnabled(boolean value){
+        if(value==shinyScannerEnabled)return;
+        shinyScannerEnabled=value;if(!value)shinyScanner.clearResult();
+        saveSettings();event("shiny-scanner-setting",value?"ON":"OFF");
+    }
+    public static void setShinyScannerReady(boolean ready,String status){shinyScannerReady=ready;shinyScanner.setStatus(status);}
+    public static void setShinyScannerStatus(String status){shinyScanner.setStatus(status);}
+    /** Map-visible heartbeat shared with the buddy/VGP gates: a native map sample within the last 1.5s. */
+    private static boolean shinyScannerMapVisible(){long age=SystemClock.elapsedRealtime()-buddyMapSample;return buddyMapSample>0&&age>=0&&age<1500;}
+    /**
+     * Fail-closed readiness: the scanner only runs in the foreground with a live backend, a known
+     * location and a visible map, with the saved toggle on, native support ready, and VGP off (the
+     * scanner pauses while Virtual Go Plus is active so the two never contend for the map).
+     */
+    public static boolean shinyScannerAllowed(){
+        return shinyScannerEnabled&&shinyScannerReady&&!vgpEnabled()&&locationKnown()&&shinyScannerMapVisible()&&hostLive();
+    }
+    /** Concise runtime status with a specific reason whenever scanning is blocked, else the native text. */
+    public static String shinyScannerStatus(){
+        if(!shinyScannerEnabled)return "Off";
+        if(!shinyScannerReady)return shinyScanner.status();
+        if(!hostLive())return "Waiting for game";
+        if(vgpEnabled())return "Paused while Virtual Go Plus is on";
+        if(!locationKnown())return "Waiting for location";
+        if(!shinyScannerMapVisible())return "Waiting for map";
+        return shinyScanner.status();
+    }
+    /** Native shiny sighting; ignored (fail closed) unless the scanner is actively allowed to scan. */
+    public static void shinyScannerFound(String encounterId,int species,int cp,double latitude,double longitude){
+        if(!shinyScannerAllowed())return;
+        shinyScanner.found(encounterId,species,cp,latitude,longitude);
+    }
+    /** Overlay gate mirrors the VGP pill: enabled and host-live; Pad also hides it with settings/quick menu. */
+    public static boolean shinyScannerOverlayVisible(){return shinyScannerEnabled&&hostLive()&&shinyScannerMapVisible();}
+    /** True when a live (unexpired, still-nearby) result exists and the map is currently shown. */
+    public static boolean shinyScannerResultVisible(){return shinyScanner.hasResult()&&shinyScannerMapVisible();}
+    public static int shinyScannerSpecies(){return shinyScanner.species();}
+    public static int shinyScannerCp(){return shinyScanner.cp();}
+    private static volatile boolean autoIncubate, incubateLongest, incubatorReady;
+    private static volatile String incubatorStatus="Waiting for incubation support";
+    public static boolean autoIncubate(){return autoIncubate;}
+    public static boolean incubateLongest(){return incubateLongest;}
+    public static void setAutoIncubate(boolean v){autoIncubate=v;saveSettings();}
+    public static void setIncubateLongest(boolean v){incubateLongest=v;saveSettings();}
+    public static void setIncubatorReady(boolean ready,String status){incubatorReady=ready;incubatorStatus=status;}
+    public static void setIncubatorStatus(String status){incubatorStatus=status;}
+    public static String incubatorStatus(){return incubatorStatus;}
+    public static boolean incubatorAvailable(){return incubatorReady&&itemAccessAllowed();}
+    public static boolean incubatorAllowed(){long age=SystemClock.elapsedRealtime()-buddyMapSample;return autoIncubate&&incubatorAvailable()&&buddyMapSample>0&&age>=0&&age<1500;}
     private static volatile int buddyBerry;
     private static volatile boolean buddyReady;
     private static volatile long buddyMapSample;
@@ -231,7 +288,7 @@ public final class Control {
     public static void setBuddyStatus(String status){buddyStatus=status;}
     public static String buddyStatus(){return buddyStatus;}
     public static boolean buddyAvailable(){return buddyReady&&itemAccessAllowed();}
-    public static boolean buddySamplingRequested(){return (buddyBerry!=0||vgpEnabled||autoIncubate)&&hostLive();}
+    public static boolean buddySamplingRequested(){return (buddyBerry!=0||vgpEnabled||autoIncubate||shinyScannerEnabled)&&hostLive();}
     public static boolean buddyAllowed(){long age=SystemClock.elapsedRealtime()-buddyMapSample;return buddyAvailable()&&buddyMapSample>0&&age>=0&&age<1500;}
     private static volatile boolean encounterBerryActive,encounterBerryBusy;
     private static volatile long encounterBerrySeen;
@@ -898,6 +955,7 @@ public final class Control {
                 if(giftOptions<0||giftOptions>7)giftOptions=0;
                 // VGP active state is runtime only: always start OFF, ignoring any legacy persisted vgpEnabled.
                 autoIncubate=Boolean.parseBoolean(p.getProperty("autoIncubate","false"));
+                shinyScannerEnabled=Boolean.parseBoolean(p.getProperty("shinyScanner","false"));shinyScanner.clearResult();
                 incubateLongest=Boolean.parseBoolean(p.getProperty("incubateLongest","false"));
                 vgpEnabled=false;vgp.clearTarget();
                 vgpOverlay=Boolean.parseBoolean(p.getProperty("vgpOverlay","false"));
@@ -992,6 +1050,7 @@ public final class Control {
         p.setProperty("vgpOptions",String.valueOf(vgpOptions));
         p.setProperty("buddyBerry",String.valueOf(buddyBerry));
         p.setProperty("autoIncubate",String.valueOf(autoIncubate));
+        p.setProperty("shinyScanner",String.valueOf(shinyScannerEnabled));
         p.setProperty("incubateLongest",String.valueOf(incubateLongest));
         p.setProperty("cooldownOverlay",String.valueOf(cooldownOverlay));p.setProperty("berryPriority",berryPriority);
         p.setProperty("encounterBerry",String.valueOf(encounterBerryEnabled));

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an experimental map-only shiny scanner with its own build flag, settings toggle, draggable status/result overlay, validated encounter responses, and no catch automation. Scanner map visibility is sampled independently of camera steering.
+
 ## v0.1.6
 
 [Full release notes](docs/releases/v0.1.6.md)

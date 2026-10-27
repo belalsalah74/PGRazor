@@ -32,7 +32,7 @@ function fixture(fault={}) {
   if(name.includes('quick-summary')||name.includes('quick-close'))return features.Summary.api;return java;
  }},setImmediate:f=>f(),setInterval:f=>{beat=f;return 10;},clearInterval(){},setTimeout(f,ms){timers.set(++id,{f,ms});return id;},clearTimeout:id=>timers.delete(id)};
  vm.runInNewContext(source,context);
- return {control,context,features,methods,events,timers,order,outcomes,fault,beat:()=>beat(),init(both=false,close=false){context.rpc.exports.init('early',{quickBall:true,quickBallPath:'ball',...(both?{quickSummary:true,quickSummaryPath:'summary',quickClose:close}:{})});},
+ return {control,context,features,methods,events,timers,order,outcomes,fault,beat:()=>beat(),init(both=false,close=false){context.rpc.exports.init('early',{quickBall:true,quickBallGameplay:true,quickBallPath:'ball',...(both?{quickSummary:true,quickSummaryPath:'summary',quickClose:close}:{})});},
   fire(ms=1500){for(const [id,t] of [...timers]){assert.equal(t.ms,ms);timers.delete(id);t.f();}},
   ready(){features.Ball.options.onEvent({kind:'metadata-ready'});},enable(){control.setQuickBallEnabled(true);},
   async dispose(){const p=context.rpc.exports.dispose();if(features.Ball.resolveStop)features.Ball.resolveStop();await p;}};

@@ -235,7 +235,7 @@ public final class Control {
         shinyScannerEnabled=value;if(!value){shinyScanner.clearResult();setShinyScannerMapVisible(false);}
         saveSettings();event("shiny-scanner-setting",value?"ON":"OFF");
     }
-    public static void setShinyScannerReady(boolean ready,String status){shinyScannerReady=ready;shinyScanner.setStatus(status);}
+    public static void setShinyScannerReady(boolean ready,String status){shinyScannerReady=ready;shinyScanner.setStatus(status);if(!ready)setShinyScannerMapVisible(false);}
     public static void setShinyScannerStatus(String status){shinyScanner.setStatus(status);}
     /** Map-visible heartbeat shared with the buddy/VGP gates: a native map sample within the last 1.5s. */
     public static void setShinyScannerMapVisible(boolean visible){shinyScannerMapSample=visible?SystemClock.elapsedRealtime():0;}
@@ -264,7 +264,7 @@ public final class Control {
         shinyScanner.found(encounterId,species,cp,latitude,longitude);
     }
     /** Overlay gate mirrors the VGP pill: enabled and host-live; Pad also hides it with settings/quick menu. */
-    public static boolean shinyScannerOverlayVisible(){return shinyScannerEnabled&&hostLive()&&shinyScannerMapVisible();}
+    public static boolean shinyScannerOverlayVisible(){return shinyScannerEnabled&&hostLive()&&!vgpEnabled()&&shinyScannerMapVisible();}
     /** True when a live (unexpired, still-nearby) result exists and the map is currently shown. */
     public static boolean shinyScannerResultVisible(){return shinyScanner.hasResult()&&shinyScannerMapVisible();}
     public static int shinyScannerSpecies(){return shinyScanner.species();}

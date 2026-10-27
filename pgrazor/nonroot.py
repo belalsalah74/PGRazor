@@ -184,6 +184,7 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
     if quick_summary: mode['quickSummary']=True
     if quick_close: mode['quickClose']=True
     if quick_ball or shiny_scanner: mode['quickBall']=True
+    if quick_ball: mode['quickBallGameplay']=True
     if shiny_scanner: mode['shinyScanner']=True
     if google_browser_login: mode['googleBrowserLogin']=True
     assets={'assets/pgrazor/mode.json':json.dumps(mode).encode()}

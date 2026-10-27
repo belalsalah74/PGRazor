@@ -53,13 +53,13 @@
  const pure={validCoords,distanceMeters,inRange,classify,requestReady,requestExpired,cacheHas,cachePut,cachePrune};
 
  features.shinyScanner=function({s,p,event,Interceptor,unity,exact,hold,target,invoke,api,Memory,ptr,alive,bool,field,LIMITS}){
-  const sc=p&&p.shinyScanner,iv=p&&p.iv;
+  const sc=p&&p.shinyScanner;
   const st={off:false,enabled:false,latitude:null,longitude:null,until:0,next:0,pending:null,manual:null,cache:new Map(),status:''};
   function status(message){if(message!==st.status){st.status=message;event(s,'shiny-status',{message});}}
   function drop(){const r=st.pending;if(!r)return;st.pending=null;if(r.promise)try{api.gchandle_free(r.promise);}catch(_){}try{api.gchandle_free(r.map);}catch(_){}}
   // Any scanner-level failure disables only the scanner and releases its roots.
   function failScanner(e){if(st.off)return;st.off=true;drop();st.cache.clear();const reason='Scanner unavailable: '+String(e&&e.message||e).slice(0,120);status(reason);event(s,'shiny-ready',{available:false,reason});}
-  function readId(o){const b=Memory.alloc(8);api.field_get_value(o,iv.wildId,b);return b.readU64().toString();}
+  function readId(o){const b=Memory.alloc(8);api.field_get_value(o,sc.wildId,b);return b.readU64().toString();}
   function readDouble(o,f){const b=Memory.alloc(8);api.field_get_value(o,f,b);return b.readDouble();}
   function manualExcluded(id,now){return !!st.manual&&st.manual.id===id&&now-st.manual.at<MANUAL_MS;}
 
@@ -70,17 +70,17 @@
    const roots=[],own=o=>{if(o.isNull())return null;const h=hold(o);roots.push(h);return target(h);};
    let species=null,cp=null,lat=null,lon=null,verdict;
    try{
-    const response=own(field(map,iv.mapResponse,'pointer'));
-    const responseOk=!!response&&exact(response,iv.encounterOut);
+    const response=own(field(map,sc.mapResponse,'pointer'));
+    const responseOk=!!response&&exact(response,sc.encounterOut);
     let idMatch=false,cpValid=false,speciesValid=false,shiny=null;
     const success=responseOk&&field(response,sc.status,'int')===sc.success;
     if(success){
-     const rwild=own(field(response,iv.responseWild,'pointer'));
-     if(rwild&&exact(rwild,iv.wildProto)){
-      idMatch=readId(rwild)===id;lat=readDouble(rwild,iv.wildLatitude);lon=readDouble(rwild,iv.wildLongitude);
-      const pokemon=own(field(rwild,iv.wildPokemon,'pointer'));
-      if(pokemon&&exact(pokemon,iv.pokemon)){
-       cp=field(pokemon,iv.values.cp_,'int');cpValid=Number.isInteger(cp)&&cp>0;
+     const rwild=own(field(response,sc.responseWild,'pointer'));
+     if(rwild&&exact(rwild,sc.wildProto)){
+      idMatch=readId(rwild)===id;lat=readDouble(rwild,sc.wildLatitude);lon=readDouble(rwild,sc.wildLongitude);
+      const pokemon=own(field(rwild,sc.wildPokemon,'pointer'));
+      if(pokemon&&exact(pokemon,sc.pokemon)){
+       cp=field(pokemon,sc.cp,'int');cpValid=Number.isInteger(cp)&&cp>0;
        species=field(pokemon,sc.species,'int');speciesValid=Number.isInteger(species)&&species>0;
        shiny=bool(sc.shiny.method,pokemon,null);
       }
@@ -104,19 +104,19 @@
    if(st.cache.size>=CACHE_MAX){status('Scan cache full; waiting for expiry');return;}
    const roots=[],own=o=>{const h=hold(o);roots.push(h);return target(h);};
    try{
-    const typeObj=own(sc.typeObject(api.class_get_type(iv.wildMap))),args=Memory.alloc(8);args.writePointer(typeObj);
+    const typeObj=own(sc.typeObject(api.class_get_type(sc.wildMap))),args=Memory.alloc(8);args.writePointer(typeObj);
     const array=own(invoke(sc.findAll,ptr(0),args)),count=array.add(24).readU64().toNumber();
     if(!Number.isFinite(count)||count<0||count>MAX_OBJECTS)throw Error('map-count');
     let nearby=0,chosen=null,mapVisible=false;
     for(let i=0;i<count&&!chosen;i++){
-     const map=array.add(32+i*8).readPointer();if(!exact(map,iv.wildMap))continue;
+     const map=array.add(32+i*8).readPointer();if(!exact(map,sc.wildMap))continue;
      const mapHandle=hold(map);roots.push(mapHandle);if(!alive(mapHandle)||!bool(sc.visible.method,map))continue;
      mapVisible=true;
-     const wild=own(field(map,iv.mapWild,'pointer'));if(!exact(wild,iv.wildProto))continue;
-     const lat=readDouble(wild,iv.wildLatitude),lon=readDouble(wild,iv.wildLongitude);
+     const wild=own(field(map,sc.mapWild,'pointer'));if(!exact(wild,sc.wildProto))continue;
+     const lat=readDouble(wild,sc.wildLatitude),lon=readDouble(wild,sc.wildLongitude);
      if(!inRange(st.latitude,st.longitude,lat,lon))continue;nearby++;
      const id=readId(wild);if(manualExcluded(id,now)||cacheHas(st.cache,id,now))continue;
-     chosen={map,id,cached:!field(map,iv.mapResponse,'pointer').isNull()};
+     chosen={map,id,cached:!field(map,sc.mapResponse,'pointer').isNull()};
     }
     event(s,'shiny-map-visible',{visible:mapVisible});
     if(!chosen){status(nearby?'Nearby targets already checked':'No wild Pokemon within range');return;}
@@ -147,12 +147,12 @@
      const r=st.pending;
      // Stale map, despawn, cancellation and the manual-encounter race all drop the request.
      if(!alive(r.map)||manualExcluded(r.id,now)){drop();return;}
-     const map=target(r.map),wild=field(map,iv.mapWild,'pointer');
+     const map=target(r.map),wild=field(map,sc.mapWild,'pointer');
      if(!bool(sc.visible.method,map)){event(s,'shiny-map-visible',{visible:false});drop();return;}
      event(s,'shiny-map-visible',{visible:true});
-     if(!exact(wild,iv.wildProto)||readId(wild)!==r.id||!inRange(st.latitude,st.longitude,readDouble(wild,iv.wildLatitude),readDouble(wild,iv.wildLongitude))){drop();return;}
+     if(!exact(wild,sc.wildProto)||readId(wild)!==r.id||!inRange(st.latitude,st.longitude,readDouble(wild,sc.wildLatitude),readDouble(wild,sc.wildLongitude))){drop();return;}
      if(requestExpired(r,now)){cachePut(st.cache,r.id,'error',now);drop();st.next=now+REQUEST_GAP_MS;status('Request timed out');return;}
-     if(field(target(r.map),iv.mapResponse,'pointer').isNull())return; // response not populated yet
+     if(field(target(r.map),sc.mapResponse,'pointer').isNull())return; // response not populated yet
      classifyMap(target(r.map),r.id,now);return;
     }
     if(requestReady(st,now))scanOnce(now);
@@ -174,9 +174,9 @@
    event(s,'shiny-ready',{available:true});
    // Respect a manual encounter: note the wild target the nameplate opens so the
    // scanner never claims or re-requests it while the user is interacting.
-   if(iv&&iv.available&&iv.setup&&iv.setup.address)s.listeners.push(Interceptor.attach(iv.setup.address,{onEnter(a){
+   if(iv&&sc.available&&sc.setup&&sc.setup.address)s.listeners.push(Interceptor.attach(sc.setup.address,{onEnter(a){
     if(st.off||s.stopping||!unity(this.threadId))return;
-    try{if(!exact(a[1],iv.wildMap))return;const wild=field(a[1],iv.mapWild,'pointer');if(!exact(wild,iv.wildProto))return;
+    try{if(!exact(a[1],sc.wildMap))return;const wild=field(a[1],sc.mapWild,'pointer');if(!exact(wild,sc.wildProto))return;
      st.manual={id:readId(wild),at:s.now()};if(st.pending&&st.pending.id===st.manual.id)drop();}catch(_){}
    }}));
   }

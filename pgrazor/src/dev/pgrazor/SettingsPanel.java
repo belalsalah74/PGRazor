@@ -51,7 +51,8 @@ final class SettingsPanel {
     // Boolean settings use proper switches.
     private Switch locationSwitch, vgpSwitch, joystickSwitch, cooldownSwitch, spawnSwitch, autoTransferSwitch,
         quickSpinSwitch, berrySwitch, quickSummarySwitch, curveSwitch, alwaysHitSwitch, arSwitch, ivCatchSwitch, ivOwnedSwitch, transferOverlaySwitch;
-    private TextView quickSummaryLabel, vgpStatus;
+    private TextView quickSummaryLabel, vgpStatus, shinyScannerStatusLine;
+    private Switch shinyScannerSwitch;
     private final CheckBox[] vgpChoices=new CheckBox[3];
     private CheckBox vgpCooldownStop;
     // Status / caption lines (muted, readiness driven).
@@ -165,6 +166,7 @@ final class SettingsPanel {
         buildLocationSection();
         buildCatchSection();
         buildVgpSection();
+        buildShinyScannerSection();
         buildIncubationSection();
         buildBuddySection();
         buildGiftsSection();
@@ -247,6 +249,14 @@ final class SettingsPanel {
         vgpCooldownStop=new CheckBox(activity);vgpCooldownStop.setText("Stop on cooldown (estimated)");vgpCooldownStop.setContentDescription("Stop Virtual Go Plus during the estimated action cooldown");vgpCooldownStop.setChecked(Control.vgpStopOnCooldown());vgpC.addView(vgpCooldownStop);
         vgpCooldownStop.setOnClickListener(v->{if(vgpCooldownStop.isChecked()!=Control.vgpStopOnCooldown())Control.setVgpStopOnCooldown(vgpCooldownStop.isChecked());host.refresh();});
         vgpStatus=caption(vgpC,Control.vgpStatus());
+    }
+
+    private void buildShinyScannerSection() {
+        LinearLayout scanC=section(body,"Shiny Scanner",false);
+        shinyScannerSwitch=switchRow(scanC,"Shiny scanner");shinyScannerSwitch.setChecked(Control.shinyScannerEnabled());
+        shinyScannerSwitch.setOnCheckedChangeListener((v,checked)->{if(checked==Control.shinyScannerEnabled())return;Control.setShinyScannerEnabled(checked);host.refresh();});
+        caption(scanC,"Shows nearby shinies on the map. Pauses while Virtual Go Plus is on.");
+        shinyScannerStatusLine=caption(scanC,Control.shinyScannerStatus());
     }
 
     private void buildIncubationSection() {
@@ -424,6 +434,7 @@ final class SettingsPanel {
         refreshSummaryVisibility();
         refreshTransfer();
         refreshVgpStatus();
+        refreshShinyScanner();
         refreshIncubation();
         refreshVgpOptions();
         refreshBuddy();
@@ -472,6 +483,11 @@ final class SettingsPanel {
         if(transferKeepList!=null){String kept=Control.transferKeepSpecies();int n=kept.isEmpty()?0:kept.split(",").length;transferKeepList.setText(n>0?"Custom keep list ("+n+")":"Custom keep list");}
         if(transferOverlaySwitch!=null){transferOverlaySwitch.setChecked(Control.transferOverlayEnabled());transferOverlaySwitch.setEnabled(Control.autoTransferEnabled());transferOverlaySwitch.setAlpha(Control.autoTransferEnabled()?1f:0.45f);}
         transferStatus.setText(Control.transferStatus());
+    }
+
+    private void refreshShinyScanner() {
+        if(shinyScannerSwitch!=null)shinyScannerSwitch.setChecked(Control.shinyScannerEnabled());
+        if(shinyScannerStatusLine!=null)shinyScannerStatusLine.setText(Control.shinyScannerStatus());
     }
 
     private void refreshVgpStatus() {

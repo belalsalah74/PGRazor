@@ -422,8 +422,11 @@ function stopQuickSummary() {
 }
 function ballUnavailable(reason) {
     if (disposed || !control) return;
-    try { Java.performNow(() => control.setQuickBallReady(false,'Unavailable: '+String(reason).slice(0,180))); }
-    catch (error) { bootLog('quick-ball-status-error: '+error); }
+    try { Java.performNow(() => {
+        if(bootParameters.quickBall===true)control.setQuickBallReady(false,'Unavailable: '+String(reason).slice(0,180));
+        if(bootParameters.shinyScanner===true)control.setShinyScannerReady(false,'Unavailable: '+String(reason).slice(0,180));
+    }); }
+    catch (error) { bootLog('native-feature-status-error: '+error); }
 }
 function restoreBallLifecycleHooks() {
     for (const method of ballLifecycleHooks) {
@@ -450,7 +453,7 @@ function revokeQuickBall() {
     }
 }
 function scheduleQuickBall() {
-    if (bootParameters.quickBall!==true || !bootParameters.quickBallPath) return;
+    if ((bootParameters.quickBall!==true && bootParameters.shinyScanner!==true) || !bootParameters.quickBallPath) return;
     try {
         control.configureQuickBall(true);
         if(bootParameters.translatedRole!=='native') {
@@ -490,14 +493,17 @@ function scheduleQuickBall() {
                     if(event.kind==='encounter-position'){event.playerLatitude=control.latitude();event.playerLongitude=control.longitude();event.spawnBooster=control.spawnBooster();}
                     control.event('quick-ball',JSON.stringify(event));
                     if(event.kind==='cooldown-encounter')control.setCooldownEncounter(event.source);
+                    if(!disposed && bootParameters.shinyScanner===true && event.kind==='shiny-ready')control.setShinyScannerReady(!!event.available,event.reason||'Ready');
+                    if(!disposed && bootParameters.shinyScanner===true && event.kind==='shiny-status')control.setShinyScannerStatus(event.message||'');
+                    if(!disposed && bootParameters.shinyScanner===true && event.kind==='shiny-found')control.shinyScannerFound(String(event.encounterId),event.species,event.cp,event.latitude,event.longitude);
                     if(!disposed && !quickBallFailed && event.kind==='metadata-ready') {
                         quickBallNativeReady=true;
-                        control.setQuickBallReady(true,'Ready: 20x catch and break-free animation');
-                        control.setThrowReady(!!(event.throws && event.throws.available));
-                        if(control.setThrowAlwaysHitReady)control.setThrowAlwaysHitReady(!!(event.alwaysHit && event.alwaysHit.available));
-                        control.setThrowArReady(!!(event.arThrows && event.arThrows.available));
-                        control.setMapTapReady(!!(event.mapTap && event.mapTap.available));
-                        if(control.setIvOwnedReady)control.setIvOwnedReady(!!(event.ivOwned && event.ivOwned.available));
+                        if(bootParameters.quickBall===true)control.setQuickBallReady(true,'Ready: 20x catch and break-free animation');
+                        if(bootParameters.quickBall===true)control.setThrowReady(!!(event.throws && event.throws.available));
+                        if(bootParameters.quickBall===true && control.setThrowAlwaysHitReady)control.setThrowAlwaysHitReady(!!(event.alwaysHit && event.alwaysHit.available));
+                        if(bootParameters.quickBall===true)control.setThrowArReady(!!(event.arThrows && event.arThrows.available));
+                        if(bootParameters.quickBall===true)control.setMapTapReady(!!(event.mapTap && event.mapTap.available));
+                        if(bootParameters.quickBall===true && control.setIvOwnedReady)control.setIvOwnedReady(!!(event.ivOwned && event.ivOwned.available));
                     }
                     if(event.kind==='throw-unavailable')control.setThrowReady(false);
                     if(event.kind==='always-hit-unavailable' && control.setThrowAlwaysHitReady)control.setThrowAlwaysHitReady(false);
@@ -580,12 +586,13 @@ function heartbeat() {
                 allowQuickCatchWait(dismiss);}
             catch (error) {bootLog('quick-summary-heartbeat-error: '+error);failQuickSummary(error);}
         }
-        if (quickBall && !quickBallFailed && bootParameters.quickBall===true) {
-            try {quickBall.setAllowed(control.quickBallAllowed());
+        if (quickBall && !quickBallFailed && (bootParameters.quickBall===true || bootParameters.shinyScanner===true)) {
+            try {if(bootParameters.quickBall===true)quickBall.setAllowed(control.quickBallAllowed());
                 if(quickBall.setThrowOptions)quickBall.setThrowOptions(control.throwGrade(),control.throwCurve(),control.throwAllowed(),control.throwAlwaysHit()&&control.throwAlwaysHitReady());
                 if(quickBall.setArThrowOptions)quickBall.setArThrowOptions(control.throwAr(),control.throwAllowed()&&control.throwArReady());
                 if(quickBall.setMapTapOptions)quickBall.setMapTapOptions(control.mapTapMode(),control.mapTapEpoch(),control.mapTapAllowed());
-                if(quickBall.setIvDisplayOptions)quickBall.setIvDisplayOptions(control.ivCatchEnabled(),control.ivOwnedEnabled(),control.ivDisplayAllowed());}
+                if(bootParameters.quickBall===true && quickBall.setIvDisplayOptions)quickBall.setIvDisplayOptions(control.ivCatchEnabled(),control.ivOwnedEnabled(),control.ivDisplayAllowed());
+                if(bootParameters.shinyScanner===true && quickBall.setShinyScannerOptions)quickBall.setShinyScannerOptions(control.shinyScannerEnabled(),control.shinyScannerAllowed(),control.latitude(),control.longitude());}
             catch(error) {
                 quickBallFailed=true;ballUnavailable(error);
                 try {requestBallStop();} catch(_) {}
@@ -725,6 +732,10 @@ rpc.exports = {
                 if (bootParameters.quickBall === true) {
                     try { control.setQuickBallReady(false,'Adapter stopping; native cleanup may await resume'); }
                     catch (error) { bootLog('quick-ball-status-error: '+error); }
+                }
+                if (bootParameters.shinyScanner === true) {
+                    try { control.setShinyScannerReady(false,'Adapter stopping; native cleanup may await resume'); }
+                    catch (error) { bootLog('shiny-scanner-status-error: '+error); }
                 }
                 Java.scheduleOnMainThread(() => control.disconnect());
             }

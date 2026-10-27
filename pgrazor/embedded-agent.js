@@ -423,7 +423,7 @@ function stopQuickSummary() {
 function ballUnavailable(reason) {
     if (disposed || !control) return;
     try { Java.performNow(() => {
-        if(bootParameters.quickBall===true)control.setQuickBallReady(false,'Unavailable: '+String(reason).slice(0,180));
+        if(bootParameters.quickBallGameplay===true)control.setQuickBallReady(false,'Unavailable: '+String(reason).slice(0,180));
         if(bootParameters.shinyScanner===true)control.setShinyScannerReady(false,'Unavailable: '+String(reason).slice(0,180));
     }); }
     catch (error) { bootLog('native-feature-status-error: '+error); }
@@ -499,12 +499,12 @@ function scheduleQuickBall() {
                     if(!disposed && bootParameters.shinyScanner===true && event.kind==='shiny-found')control.shinyScannerFound(String(event.encounterId),event.species,event.cp,event.latitude,event.longitude);
                     if(!disposed && !quickBallFailed && event.kind==='metadata-ready') {
                         quickBallNativeReady=true;
-                        if(bootParameters.quickBall===true)control.setQuickBallReady(true,'Ready: 20x catch and break-free animation');
-                        if(bootParameters.quickBall===true)control.setThrowReady(!!(event.throws && event.throws.available));
-                        if(bootParameters.quickBall===true && control.setThrowAlwaysHitReady)control.setThrowAlwaysHitReady(!!(event.alwaysHit && event.alwaysHit.available));
-                        if(bootParameters.quickBall===true)control.setThrowArReady(!!(event.arThrows && event.arThrows.available));
-                        if(bootParameters.quickBall===true)control.setMapTapReady(!!(event.mapTap && event.mapTap.available));
-                        if(bootParameters.quickBall===true && control.setIvOwnedReady)control.setIvOwnedReady(!!(event.ivOwned && event.ivOwned.available));
+                        if(bootParameters.quickBallGameplay===true)control.setQuickBallReady(true,'Ready: 20x catch and break-free animation');
+                        if(bootParameters.quickBallGameplay===true)control.setThrowReady(!!(event.throws && event.throws.available));
+                        if(bootParameters.quickBallGameplay===true && control.setThrowAlwaysHitReady)control.setThrowAlwaysHitReady(!!(event.alwaysHit && event.alwaysHit.available));
+                        if(bootParameters.quickBallGameplay===true)control.setThrowArReady(!!(event.arThrows && event.arThrows.available));
+                        if(bootParameters.quickBallGameplay===true)control.setMapTapReady(!!(event.mapTap && event.mapTap.available));
+                        if(bootParameters.quickBallGameplay===true && control.setIvOwnedReady)control.setIvOwnedReady(!!(event.ivOwned && event.ivOwned.available));
                     }
                     if(event.kind==='throw-unavailable')control.setThrowReady(false);
                     if(event.kind==='always-hit-unavailable' && control.setThrowAlwaysHitReady)control.setThrowAlwaysHitReady(false);
@@ -588,11 +588,14 @@ function heartbeat() {
             catch (error) {bootLog('quick-summary-heartbeat-error: '+error);failQuickSummary(error);}
         }
         if (quickBall && !quickBallFailed && (bootParameters.quickBall===true || bootParameters.shinyScanner===true)) {
-            try {if(bootParameters.quickBall===true)quickBall.setAllowed(control.quickBallAllowed());
-                if(quickBall.setThrowOptions)quickBall.setThrowOptions(control.throwGrade(),control.throwCurve(),control.throwAllowed(),control.throwAlwaysHit()&&control.throwAlwaysHitReady());
-                if(quickBall.setArThrowOptions)quickBall.setArThrowOptions(control.throwAr(),control.throwAllowed()&&control.throwArReady());
-                if(quickBall.setMapTapOptions)quickBall.setMapTapOptions(control.mapTapMode(),control.mapTapEpoch(),control.mapTapAllowed());
-                if(bootParameters.quickBall===true && quickBall.setIvDisplayOptions)quickBall.setIvDisplayOptions(control.ivCatchEnabled(),control.ivOwnedEnabled(),control.ivDisplayAllowed());
+            try {
+                if(bootParameters.quickBallGameplay===true){
+                    quickBall.setAllowed(control.quickBallAllowed());
+                    if(quickBall.setThrowOptions)quickBall.setThrowOptions(control.throwGrade(),control.throwCurve(),control.throwAllowed(),control.throwAlwaysHit()&&control.throwAlwaysHitReady());
+                    if(quickBall.setArThrowOptions)quickBall.setArThrowOptions(control.throwAr(),control.throwAllowed()&&control.throwArReady());
+                    if(quickBall.setMapTapOptions)quickBall.setMapTapOptions(control.mapTapMode(),control.mapTapEpoch(),control.mapTapAllowed());
+                    if(quickBall.setIvDisplayOptions)quickBall.setIvDisplayOptions(control.ivCatchEnabled(),control.ivOwnedEnabled(),control.ivDisplayAllowed());
+                }
                 if(bootParameters.shinyScanner===true && quickBall.setShinyScannerOptions)quickBall.setShinyScannerOptions(control.shinyScannerEnabled(),control.shinyScannerAllowed(),control.latitude(),control.longitude());}
             catch(error) {
                 quickBallFailed=true;ballUnavailable(error);
@@ -730,7 +733,7 @@ rpc.exports = {
                     try { control.setQuickSummaryReady(false,'Adapter stopped'); }
                     catch (error) { bootLog('quick-summary-status-error: '+error); }
                 }
-                if (bootParameters.quickBall === true) {
+                if (bootParameters.quickBallGameplay === true) {
                     try { control.setQuickBallReady(false,'Adapter stopping; native cleanup may await resume'); }
                     catch (error) { bootLog('quick-ball-status-error: '+error); }
                 }

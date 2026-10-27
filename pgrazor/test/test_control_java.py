@@ -210,7 +210,7 @@ class ControlJavaTests(unittest.TestCase):
                                     capture_output=True, text=True, timeout=15)
             self.assertEqual(tested.returncode, 0, tested.stdout + tested.stderr)
             self.assertIn('PASS: real Control ball outcome', tested.stdout)
-            for test_class, expected in (('ControlShinyScannerTest','PASS: shiny scanner Control policy'),('ShinyScannerControllerTest','PASS: shiny result validation')):
+            for test_class, expected in (('ControlShinyScannerTest','PASS: scanner readiness'),('ShinyScannerControllerTest','PASS: shiny result validation')):
                 tested=subprocess.run([str(runtime),'-cp',str(classes),'dev.pgrazor.'+test_class],capture_output=True,text=True,timeout=15)
                 self.assertEqual(tested.returncode,0,tested.stdout+tested.stderr)
                 self.assertIn(expected,tested.stdout)

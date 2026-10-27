@@ -177,9 +177,10 @@ class ControlJavaTests(unittest.TestCase):
                 'Control.java', 'MotionEngine.java', 'LocationState.java', 'GameRoutesController.java',
                 'CameraHeadingState.java', 'CameraSteering.java',
                 'BerryPriority.java', 'MapTapSequence.java', 'CooldownState.java',
-                'VgpController.java', 'CatchOutcomeController.java', 'SettingsWriter.java'))
+                'VgpController.java', 'CatchOutcomeController.java', 'SettingsWriter.java', 'ShinyScannerController.java'))
             sources.extend([ROOT / 'test/ControlQuickSummaryTest.java',ROOT / 'test/ControlQuickBallTest.java',
                             ROOT / 'test/ControlQuickBallOutcomeTest.java',ROOT / 'test/ControlSettingsTest.java',
+                            ROOT / 'test/ControlShinyScannerTest.java',ROOT / 'test/ShinyScannerControllerTest.java',
                             ROOT / 'test/VgpControllerTest.java',ROOT / 'test/CooldownTest.java',
                             ROOT / 'test/ControlSettingsReloadTest.java'])
             classes = work / 'classes'
@@ -209,6 +210,10 @@ class ControlJavaTests(unittest.TestCase):
                                     capture_output=True, text=True, timeout=15)
             self.assertEqual(tested.returncode, 0, tested.stdout + tested.stderr)
             self.assertIn('PASS: real Control ball outcome', tested.stdout)
+            for test_class, expected in (('ControlShinyScannerTest','PASS: shiny scanner Control policy'),('ShinyScannerControllerTest','PASS: shiny result validation')):
+                tested=subprocess.run([str(runtime),'-cp',str(classes),'dev.pgrazor.'+test_class],capture_output=True,text=True,timeout=15)
+                self.assertEqual(tested.returncode,0,tested.stdout+tested.stderr)
+                self.assertIn(expected,tested.stdout)
             tested = subprocess.run([str(runtime), '-cp', str(classes), 'dev.pgrazor.VgpControllerTest'],
                                     capture_output=True, text=True, timeout=15)
             self.assertEqual(tested.returncode, 0, tested.stdout + tested.stderr)

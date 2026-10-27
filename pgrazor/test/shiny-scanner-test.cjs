@@ -16,7 +16,7 @@ function build(opts={}){
  const s={now:()=>clock,stopping:false,listeners:[]};
  const api={gchandle_free:h=>freed.push(h),field_get_value:()=>{throw Error('no native field read in this test');},class_get_type:()=>{throw Error('no class_get_type');}};
  const sc=opts.scUnavailable?{available:false,reason:opts.reason||'metadata-x'}
-  :{available:true,species:{},shiny:{method:{}},visible:{method:{}},request:{method:{}},findAll:{},typeObject:()=>{throw Error('no typeObject');}};
+  :{available:true,species:{},shiny:{method:{}},visible:{method:{}},request:{method:{}},findAll:{},setup:{address:{}},typeObject:()=>{throw Error('no typeObject');}};
  const iv={available:true,setup:{address:{}},wildMap:{},mapWild:{},wildProto:{},mapResponse:{},responseWild:{},wildPokemon:{},pokemon:{},encounterOut:{},wildId:{},wildLatitude:{},wildLongitude:{},values:{cp_:{}}};
  const deps={s,p:{shinyScanner:sc,iv},event:(_s,k,v)=>events.push(Object.assign({k},v)),
   Interceptor:{attach:(addr,cb)=>{const h={addr,cb,detach(){}};attached.push(h);return h;}},

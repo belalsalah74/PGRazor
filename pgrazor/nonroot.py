@@ -137,7 +137,7 @@ def validate_survey_options(enabled, panel_only, abi, flag='--il2cpp-survey'):
         raise ValueError(flag+' requires embedded Gadget on the native arm64-v8a runtime; panel-only and non-ARM64 builds are unsupported')
 
 
-def package(source, *,panel_only=False,download=False,preview=False,probe_abi=None,game_runtime_abi='auto',il2cpp_survey=False,camera_probe=False,camera_sample=False,camera_steering=False,scene_probe=False,scene_observe=False,interaction_probe=False,quick_summary=False,quick_ball=False,quick_close=False,google_browser_login=False):
+def package(source, *,panel_only=False,download=False,preview=False,probe_abi=None,game_runtime_abi='auto',il2cpp_survey=False,camera_probe=False,camera_sample=False,camera_steering=False,scene_probe=False,scene_observe=False,interaction_probe=False,quick_summary=False,quick_ball=False,shiny_scanner=False,quick_close=False,google_browser_login=False):
     if quick_close and quick_summary: raise ValueError('--quick-close and --quick-summary are mutually exclusive')
     quick_summary=bool(quick_summary or quick_close)
     summary_script='quick-close.js' if quick_close else 'quick-summary.js'
@@ -148,8 +148,8 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
         raise ValueError('--interaction-probe can only run alone or with --camera-steering; other native diagnostics cannot be combined')
     if quick_summary and (il2cpp_survey or scene_probe or camera_sample or (camera_probe and not camera_steering)):
         raise ValueError('--quick-summary can combine with camera steering and interaction probe only; other native diagnostics cannot be combined')
-    if quick_ball and (il2cpp_survey or scene_probe or camera_sample or (camera_probe and not camera_steering)):
-        raise ValueError('--quick-ball can combine with camera steering, interaction probe and quick summary only; other native diagnostics cannot be combined')
+    if (quick_ball or shiny_scanner) and (il2cpp_survey or scene_probe or camera_sample or (camera_probe and not camera_steering)):
+        raise ValueError('--quick-ball/--shiny-scanner can combine with camera steering, interaction probe and quick summary only; other native diagnostics cannot be combined')
     if scene_probe and (il2cpp_survey or camera_probe): raise ValueError('--scene-probe cannot be combined with other native diagnostics or camera steering')
     if il2cpp_survey and camera_probe: raise ValueError('--camera-probe and --il2cpp-survey cannot be combined')
     validate_survey_options(il2cpp_survey,panel_only,probe_abi if preview else game_runtime_abi)
@@ -157,7 +157,7 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
     validate_survey_options(scene_probe,panel_only,probe_abi if preview else game_runtime_abi,'--scene-probe')
     validate_survey_options(interaction_probe,panel_only,probe_abi if preview else game_runtime_abi,'--interaction-probe')
     validate_survey_options(quick_summary,panel_only,probe_abi if preview else game_runtime_abi,'--quick-close' if quick_close else '--quick-summary')
-    validate_survey_options(quick_ball,panel_only,probe_abi if preview else game_runtime_abi,'--quick-ball')
+    validate_survey_options(quick_ball or shiny_scanner,panel_only,probe_abi if preview else game_runtime_abi,'--shiny-scanner' if shiny_scanner and not quick_ball else '--quick-ball')
     dex=validated_build()
     folder=ROOT/'build/nonroot'/(dt.datetime.now().strftime('%Y%m%d-%H%M%S')+'-'+uuid.uuid4().hex[:8]); folder.mkdir(parents=True)
     inputs=input_apks(source,folder)
@@ -183,7 +183,8 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
     if interaction_probe: mode['interactionProbe']=True
     if quick_summary: mode['quickSummary']=True
     if quick_close: mode['quickClose']=True
-    if quick_ball: mode['quickBall']=True
+    if quick_ball or shiny_scanner: mode['quickBall']=True
+    if shiny_scanner: mode['shinyScanner']=True
     if google_browser_login: mode['googleBrowserLogin']=True
     assets={'assets/pgrazor/mode.json':json.dumps(mode).encode()}
     # POI marker art loaded by the Java map via AssetManager at pgrazor/map-icons/<name>.
@@ -218,8 +219,9 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
         if quick_close:
             assets['assets/pgrazor/quick-summary.js']=ROOT/'diagnostics/quick-summary.js'
             assets['assets/pgrazor/quick-close.js']=script_bundle.bundle(ROOT,'quick-close.js')
-        if quick_ball:
-            assets['assets/pgrazor/quick-ball.js']=ROOT/'diagnostics/quick-ball.js'
+        if quick_ball or shiny_scanner:
+            bundle_name='quick-ball.js' if quick_ball else 'shiny-scanner.js'
+            assets['assets/pgrazor/quick-ball.js']=script_bundle.bundle(ROOT,bundle_name)
         for notice in ['NOTICE.txt','COPYING.frida-tools','bridge-provenance.json']:
             assets['assets/pgrazor/bridge-notices/'+notice]=ROOT/'vendor'/notice
     report={'input':str(source.resolve()),'input_sha256':runtime_assets.sha256(source),'package':package_name,
@@ -273,7 +275,9 @@ def package(source, *,panel_only=False,download=False,preview=False,probe_abi=No
             'acceleration_default':False,
             'source':str(ROOT/'diagnostics/quick-ball.js'),
             'asset':'assets/pgrazor/quick-ball.js',
-            'sha256':runtime_assets.sha256(ROOT/'diagnostics/quick-ball.js')}
+            'sha256':hashlib.sha256(assets['assets/pgrazor/quick-ball.js']).hexdigest()}
+    if shiny_scanner:
+        report.setdefault('diagnostics',{})['shiny_scanner']={'startup_mode':'metadata-validation','quick_ball_gameplay':False,'source':str(ROOT/'runtime/features/shinyScanner.js'),'asset':'assets/pgrazor/quick-ball.js','sha256':hashlib.sha256(assets['assets/pgrazor/quick-ball.js']).hexdigest()}
     report['module_sha256']=runtime_assets.sha256(dex)
     for index,(path,info) in enumerate(rows):
         stem='base' if path==base else f'split-{index}'
@@ -343,6 +347,7 @@ def main(argv=None):
     parser.add_argument('--quick-summary',action='store_true',help='Bundle experimental summary feature with startup metadata validation; acceleration remains off until enabled in UI; native ARM64 only')
     parser.add_argument('--quick-close',action='store_true',help='Bundle experimental summary and details auto-dismiss after confirmed success; defaults OFF; excludes new-species screens')
     parser.add_argument('--quick-ball',action='store_true',help='Bundle experimental 20x catch and break-free ball animation; summary screens remain; defaults OFF; native ARM64 only')
+    parser.add_argument('--shiny-scanner',action='store_true',help='Bundle the independent map-only shiny scanner; Quick Ball gameplay stays disabled; native ARM64 only')
     parser.add_argument('--google-browser-login',action='store_true',help='Opt-in experimental Google browser sign-in')
     parser.add_argument('--download-runtime',action='store_true',help='Fetch pinned official Gadget asset, verify GitHub SHA-256, and cache it')
     parser.add_argument('--skip-build',action='store_true',help='Use compiled module only if source/checksums still match')
@@ -370,7 +375,7 @@ def main(argv=None):
     if (args.scene_probe or args.scene_observe) and args.panel_only: parser.error('Scene diagnostics cannot be used with --panel-only')
     if args.interaction_probe and args.panel_only: parser.error('--interaction-probe cannot be used with --panel-only')
     if args.quick_summary and args.panel_only: parser.error('--quick-summary cannot be used with --panel-only')
-    if args.quick_ball and args.panel_only: parser.error('--quick-ball cannot be used with --panel-only')
+    if (args.quick_ball or args.shiny_scanner) and args.panel_only: parser.error('--quick-ball/--shiny-scanner cannot be used with --panel-only')
     android=None; abi=args.abi
     if args.probe:
         import monitor
@@ -385,7 +390,7 @@ def main(argv=None):
     validate_survey_options(args.scene_probe or args.scene_observe,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--scene-probe')
     validate_survey_options(args.interaction_probe,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--interaction-probe')
     validate_survey_options(args.quick_summary,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--quick-close' if args.quick_close else '--quick-summary')
-    validate_survey_options(args.quick_ball,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--quick-ball')
+    validate_survey_options(args.quick_ball or args.shiny_scanner,args.panel_only,abi if args.probe or args.build_probe else (args.runtime_abi or 'auto'),'--shiny-scanner' if args.shiny_scanner and not args.quick_ball else '--quick-ball')
     if not args.skip_build: command(sys.executable,ROOT/'build.py')
     preview=args.probe or args.build_probe
     source=ROOT/'build/pgrazor-preview.apk' if preview else args.apk.resolve()
@@ -400,6 +405,7 @@ def main(argv=None):
     if args.quick_close: options['quick_close']=True
     elif args.quick_summary: options['quick_summary']=True
     if args.quick_ball: options['quick_ball']=True
+    if args.shiny_scanner: options['shiny_scanner']=True
     if args.google_browser_login: options['google_browser_login']=True
     report,folder=package(source,panel_only=args.panel_only,download=args.download_runtime,preview=preview,probe_abi=abi,**options)
     cleanup_generated_builds()

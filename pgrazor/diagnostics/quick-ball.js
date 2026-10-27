@@ -322,30 +322,34 @@ function prepare(module,api,domain){
     colorGet:method(shadow,'get_effectColor','UnityEngine.Color',[],false,null),colorSet:method(shadow,'set_effectColor','System.Void',['UnityEngine.Color'],false,null),
     distanceGet:method(shadow,'get_effectDistance','UnityEngine.Vector2',[],false,null),distanceSet:method(shadow,'set_effectDistance','System.Void',['UnityEngine.Vector2'],false,null)};
   });
-  // Map-only shiny scanner metadata (read-only; never hooked for capture). Reuses
-  // iv's validated encounter-response field map and adds the species field, the
-  // VisibleOnMap/IsShinyPokemon getters, FindObjectsOfType and the map request.
-  // Unavailable here disables ONLY the scanner.
+  // Independent map-only shiny scanner metadata. It resolves its own fields and methods rather
+  // than depending on the IV metadata bundle, so missing IV/Quick Ball details cannot disable it.
   const shinyScanner=part(()=>{
-   if(!iv.available)throw Error('scanner-iv-metadata');if(!api.class_get_methods)throw Error('scanner-export:class_get_methods');
-   const request=method(need(WILDMAP),'SendEncounterRequest',n=>n.includes('<Niantic.Holoholo.Map.PokemonEncounterResponse>'),[],false,null);
+   if(!api.class_get_methods)throw Error('scanner-export:class_get_methods');
+   const wildMap=need(WILDMAP),wildProto=need(WILDPROTO),encounterOut=need(ENCOUNTEROUT),pokemon=need(PK);
+   const request=method(wildMap,'SendEncounterRequest',n=>n.includes('<Niantic.Holoholo.Map.PokemonEncounterResponse>'),[],false,null);
    const iter=Memory.alloc(8);iter.writePointer(ptr(0));let findAll=null;
    for(let i=0;;i++){if(i>=LIMITS.traceMethods)throw Error('scanner-method-limit');const m=api.class_get_methods(classes['UnityEngine.Object'],iter);if(m.isNull())break;
     if(text(api.method_get_name(m))!=='FindObjectsOfType'||api.method_is_generic(m)||api.method_get_param_count(m)!==1||typeName(api,api.method_get_param(m,0))!=='System.Type'||typeName(api,api.method_get_return_type(m))!=='UnityEngine.Object[]')continue;
     if(findAll)throw Error('scanner-find-all-duplicate');findAll=m;}
    if(!findAll)throw Error('scanner-find-all');
    const typeExport=module.findExportByName('il2cpp_type_get_object');if(!typeExport)throw Error('scanner-type-object');
-   const statusType=ENCOUNTEROUT+'.Types.Status',status=check(need(ENCOUNTEROUT),'Status',statusType,0x1c);
+   const statusType=ENCOUNTEROUT+'.Types.Status',status=check(encounterOut,'Status',statusType,0x1c);
    const statusClass=api.class_from_type(api.field_get_type(status)),statusAlign=Memory.alloc(4);
    if(statusClass.isNull()||!api.class_is_enum(statusClass)||typeName(api,api.class_enum_basetype(statusClass))!=='System.Int32'||api.class_value_size(statusClass,statusAlign)!==4||statusAlign.readU32()!==4)throw Error('scanner-status-abi');
    const successField=api.class_get_field_from_name(statusClass,Memory.allocUtf8String('EncounterSuccess'));
    if(successField.isNull()||!api.field_get_parent(successField).equals(statusClass)||(api.field_get_flags(successField)&0x8050)!==0x8050||typeName(api,api.field_get_type(successField))!==statusType)throw Error('scanner-status-success');
    const successValue=Memory.alloc(4);api.field_static_get_value(successField,successValue);
    return{request,findAll,typeObject:new NativeFunction(typeExport,'pointer',['pointer'],{scheduling:'exclusive'}),
-    status,success:successValue.readS32(),
-    species:check(need(PK),'pokemonId_','System.Int32',0x28),
-    visible:method(need(WILDMAP),'get_VisibleOnMap','System.Boolean',[],false,null),
-    shiny:method(need(PK),'get_IsShinyPokemon','System.Boolean',[],false,null)};
+    status,success:successValue.readS32(),wildMap,wildProto,encounterOut,pokemon,
+    mapWild:check(wildMap,'eluo',WILDPROTO,0x270),mapResponse:check(wildMap,'elup',ENCOUNTEROUT,0x278),
+    wildLatitude:check(wildProto,'Latitude','System.Double',0x20),wildLongitude:check(wildProto,'Longitude','System.Double',0x28),
+    responseWild:check(encounterOut,'Pokemon',WILDPROTO,0x10),wildPokemon:check(wildProto,'Pokemon',PK,0x38),
+    wildId:check(wildProto,'EncounterId','System.UInt64',0x10),cp:check(pokemon,'cp_','System.Int32',0x2c),
+    species:check(pokemon,'pokemonId_','System.Int32',0x28),
+    visible:method(wildMap,'get_VisibleOnMap','System.Boolean',[],false,null),
+    shiny:method(pokemon,'get_IsShinyPokemon','System.Boolean',[],false,null),
+    setup:method(need(NAMEPLATE),'SetPokemonUI','System.Void',[MAPPK,'Niantic.Rpc.GameplayWeatherProto.Types.WeatherCondition'],false,[0xad84364,'ff8303d1fd7b08a9fc6f09a9fa670aa9f85f0ba9f6570ca9f44f0da9541a02f0])};
   });
   return{module,api,classes,fields,fieldMeta,methods,success,outcomes,trace,throws,alwaysHit,arThrows,mapTap,iv,ivText,ivOwned,ivOutline,shinyScanner,caller:module.base.add(0xad691d0)};
  }finally{if(owned&&!owned.isNull())api.thread_detach(owned);}

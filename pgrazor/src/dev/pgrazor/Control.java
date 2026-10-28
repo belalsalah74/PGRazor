@@ -269,17 +269,7 @@ public final class Control {
     public static boolean shinyScannerResultVisible(){return shinyScanner.hasResult()&&shinyScannerMapVisible();}
     public static int shinyScannerSpecies(){return shinyScanner.species();}
     public static int shinyScannerCp(){return shinyScanner.cp();}
-    private static volatile boolean autoIncubate, incubateLongest, incubatorReady;
-    private static volatile String incubatorStatus="Waiting for incubation support";
-    public static boolean autoIncubate(){return autoIncubate;}
-    public static boolean incubateLongest(){return incubateLongest;}
-    public static void setAutoIncubate(boolean v){autoIncubate=v;saveSettings();}
-    public static void setIncubateLongest(boolean v){incubateLongest=v;saveSettings();}
-    public static void setIncubatorReady(boolean ready,String status){incubatorReady=ready;incubatorStatus=status;}
-    public static void setIncubatorStatus(String status){incubatorStatus=status;}
-    public static String incubatorStatus(){return incubatorStatus;}
-    public static boolean incubatorAvailable(){return incubatorReady&&itemAccessAllowed();}
-    public static boolean incubatorAllowed(){long age=SystemClock.elapsedRealtime()-buddyMapSample;return autoIncubate&&incubatorAvailable()&&buddyMapSample>0&&age>=0&&age<1500;}
+
     private static volatile int buddyBerry;
     private static volatile boolean buddyReady;
     private static volatile long buddyMapSample;

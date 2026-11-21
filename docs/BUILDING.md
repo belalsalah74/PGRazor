@@ -108,7 +108,7 @@ Both upload and publication verify all three downloads against their checksums a
 
 ## GitHub Actions: secret-free installable preview APK
 
-The **Build installable APK** workflow runs automatically on pushes to `main` and can also be started manually. It compiles and packages the standalone PGRazor controls preview as **PGRazor-preview.apk**. This is an installable preview app, package ID `dev.pgrazor`; it is **not a modified Pokémon GO game** and does not use the game's package ID `com.nianticlabs.pokemongo`.
+The **Build installable APK** workflow runs automatically on pushes to `main` and can also be started manually. It compiles and packages the standalone PGRazor controls preview as **PGRazor-preview.apk**. This is an installable preview app, package ID `dev.pgrazor.preview`; it is **not a modified Pokémon GO game** and does not use the game's package ID `com.nianticlabs.pokemongo`.
 
 This workflow deliberately requires **no repository Actions secrets**, no original game package, and no release signing key. The preview build generates a temporary development signing key on the hosted runner. The runner verifies the APK signature, generates a SHA-256 manifest and build receipt, and uploads the **PGRazor-installable-preview** artifact (APK, checksum and receipt) for 14 days.
 

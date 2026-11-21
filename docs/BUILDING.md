@@ -106,21 +106,13 @@ After device testing, run with `publish` enabled to create one release containin
 
 Both upload and publication verify all three downloads against their checksums and build receipts, check that the game/release versions match, and confirm that the Root APK embeds the exact published module ZIP. Source CI also compiles the Root installer without game input or signing secrets. The signing key remains an Actions secret; keep it unchanged across releases.
 
-## GitHub Actions: standalone installable APK
+## GitHub Actions: secret-free installable preview APK
 
-Use **Actions → Build installable APK → Run workflow** to build a non-root **PGRazor.apk** without creating a GitHub release or requiring a release tag. The completed run publishes a **PGRazor-installable-APK** artifact containing the APK, SHA-256 manifest, and build receipt. The workflow uses the pinned Windows Android toolchain, runs repository checks, verifies the APK signature and checksum, and removes its temporary signing key.
+The **Build installable APK** workflow runs automatically on pushes to `main` and can also be started manually. It compiles and packages the standalone PGRazor controls preview as **PGRazor-preview.apk**. This is an installable preview app, package ID `dev.pgrazor`; it is **not a modified Pokémon GO game** and does not use the game's package ID `com.nianticlabs.pokemongo`.
 
-Configure the same five repository Actions secrets used by the release workflow:
+This workflow deliberately requires **no repository Actions secrets**, no original game package, and no release signing key. The preview build generates a temporary development signing key on the hosted runner. The runner verifies the APK signature, generates a SHA-256 manifest and build receipt, and uploads the **PGRazor-installable-preview** artifact (APK, checksum and receipt) for 14 days.
 
-| Secret | Value |
-| --- | --- |
-| `PGRAZOR_INPUT_URL` | HTTPS URL to the supported original APKM, or a GitHub release-asset API URL in this repository |
-| `PGRAZOR_KEYSTORE_BASE64` | Base64-encoded signing keystore |
-| `PGRAZOR_KEY_ALIAS` | Signing alias |
-| `PGRAZOR_STORE_PASSWORD` | Keystore password |
-| `PGRAZOR_KEY_PASSWORD` | Private-key password |
-
-The source game must pass the same exact version, signature, and SHA-256 checks as the release workflow. Set the optional version input only when building a deliberate version override; otherwise the workflow uses `pgrazor/VERSION`. The workflow needs `contents: write` to retrieve the private draft game asset; checkout does not persist the token in Git credentials. This workflow builds the installable non-root APK only; it does not build the rooted installer or publish a release.
+Download it from **Actions → Build installable APK → latest successful run → Artifacts**. This workflow builds the standalone preview only. A playable game-modified APK requires a clean original game APK/APKM matching the supported profile; the Android package name alone is not sufficient input. The separate release workflow retains its own release-input and signing requirements.
 
 ## Discord release announcements
 

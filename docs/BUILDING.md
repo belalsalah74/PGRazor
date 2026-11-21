@@ -106,13 +106,39 @@ After device testing, run with `publish` enabled to create one release containin
 
 Both upload and publication verify all three downloads against their checksums and build receipts, check that the game/release versions match, and confirm that the Root APK embeds the exact published module ZIP. Source CI also compiles the Root installer without game input or signing secrets. The signing key remains an Actions secret; keep it unchanged across releases.
 
-## GitHub Actions: secret-free installable preview APK
+## Original game input and GitHub release builds
 
-The **Build installable APK** workflow runs automatically on pushes to `main` and can also be started manually. It compiles and packages the standalone PGRazor controls preview as **PGRazor-preview.apk**. This is an installable preview app, package ID `dev.pgrazor.preview`; it is **not a modified Pokémon GO game** and does not use the game's package ID `com.nianticlabs.pokemongo`.
+The playable release workflow is **Android release (non-root and rooted)** at [release.yml](../.github/workflows/release.yml). It builds the actual PGRazor-modified Pokémon GO package, not the standalone controls preview.
 
-This workflow deliberately requires **no repository Actions secrets**, no original game package, and no release signing key. The preview build generates a temporary development signing key on the hosted runner. The runner verifies the APK signature, generates a SHA-256 manifest and build receipt, and uploads the **PGRazor-installable-preview** artifact (APK, checksum and receipt) for 14 days.
+**Do not commit or upload the original Pokémon GO APK/APKM to this public source repository.** The workflow downloads the original bundle into the temporary GitHub Actions runner from the HTTPS URL stored in the repository Actions secret `PGRAZOR_INPUT_URL`. Use a private file host that provides a direct, time-limited or otherwise protected HTTPS download URL. Keep any access token embedded in that URL inside the Actions secret; never put it in workflow inputs, source files, release notes, or logs.
 
-Download it from **Actions → Build installable APK → latest successful run → Artifacts**. This workflow builds the standalone preview only. A playable game-modified APK requires a clean original game APK/APKM matching the supported profile; the Android package name alone is not sufficient input. The separate release workflow retains its own release-input and signing requirements.
+The input must be the clean, Niantic-signed APK/APKM/APKS matching the currently approved profile. The workflow validates its SHA-256 and signer before patching. The current profile is Pokémon GO **0.437.0**, version code **2026110902**, SHA-256:
+
+```
+5be1ff372d8a3aa1c9ce9f4014b3825119086feaf71aae6b0538636acafebdd3
+```
+
+The build fails closed if the supplied input differs. It will not silently use a newer game version or outdated native bindings.
+
+### One-time release setup
+
+Add these repository **Actions secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | What it contains |
+| --- | --- |
+| `PGRAZOR_INPUT_URL` | Direct HTTPS download URL for the matching original APKM/APKS, hosted privately |
+| `PGRAZOR_KEYSTORE_BASE64` | Base64 of your persistent Android release keystore |
+| `PGRAZOR_KEY_ALIAS` | Alias of the release key |
+| `PGRAZOR_STORE_PASSWORD` | Keystore password |
+| `PGRAZOR_KEY_PASSWORD` | Key password |
+
+Keep the same signing keystore for future updates so Android accepts them as updates instead of requiring uninstall/reinstall. Do not share or commit the keystore. These secrets are configuration—not an APK upload to the repository.
+
+Then open **Actions → Android release (non-root and rooted) → Run workflow**, enter a release tag, and leave `publish` disabled for the first candidate. Download the **PGRazor-android** artifact from the completed run. It contains the real `PGRazor.apk`, Root installer, and manual Root module.
+
+Test the candidate on a device before publishing. The workflow marks builds as not device-tested; successful compilation and signature verification do not guarantee that every gameplay feature works in a live game. Once tested, run the workflow with `publish` enabled to create the GitHub release.
+
+The separate `pgrazor/build.py` command produces **pgrazor-preview.apk**, a standalone controls preview. It is not the playable game and is not the release artifact. The preview workflow was removed to prevent it being mistaken for the real PGRazor APK.
 
 ## Discord release announcements
 

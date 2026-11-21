@@ -15,7 +15,7 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -94,6 +94,9 @@ jobs:
         run: python -B tools/check.py
 
       - name: Validate build secrets and configure temporary signing path
+        env:
+          PGRAZOR_INPUT_URL: ${{ secrets.PGRAZOR_INPUT_URL }}
+          PGRAZOR_KEYSTORE_BASE64: ${{ secrets.PGRAZOR_KEYSTORE_BASE64 }}
         run: |
           foreach ($name in @('PGRAZOR_INPUT_URL','PGRAZOR_KEYSTORE_BASE64','PGRAZOR_KEY_ALIAS','PGRAZOR_STORE_PASSWORD','PGRAZOR_KEY_PASSWORD')) {
             if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {

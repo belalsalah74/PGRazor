@@ -1,0 +1,181 @@
+name: Build installable APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      google_browser_login:
+        description: Add PGRazor's Google browser sign-in callback
+        required: true
+        type: boolean
+        default: true
+      version:
+        description: Optional PGRazor version override (for example v0.3.7); blank uses pgrazor/VERSION
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PGRAZOR_BUILD_TOOLS: 36.0.0
+      PGRAZOR_ANDROID_PLATFORM: android-36
+      PGRAZOR_KEY_ALIAS: ${{ secrets.PGRAZOR_KEY_ALIAS }}
+      PGRAZOR_STORE_PASSWORD: ${{ secrets.PGRAZOR_STORE_PASSWORD }}
+      PGRAZOR_KEY_PASSWORD: ${{ secrets.PGRAZOR_KEY_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+
+      - name: Install pinned Android SDK and NDKs
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "sources;android-36" "ndk;27.3.13750724" "ndk;29.0.14206865"
+
+      - name: Install native build tools
+        run: python -m pip install "cmake==4.4.4" "ninja==1.13.2"
+
+      - name: Configure pinned native prerequisites
+        run: |
+          $sdkRoot = $env:ANDROID_SDK_ROOT
+          if (!$sdkRoot) { $sdkRoot = $env:ANDROID_HOME }
+          if (!$sdkRoot) { throw 'Android SDK root was not configured' }
+          $gameplayNdk = Join-Path $sdkRoot 'ndk/27.3.13750724'
+          $artNdk = Join-Path $sdkRoot 'ndk/29.0.14206865'
+          foreach ($ndkPath in @($gameplayNdk, $artNdk)) {
+            if (!(Test-Path -LiteralPath (Join-Path $ndkPath 'source.properties'))) {
+              throw "Missing pinned NDK: $ndkPath"
+            }
+          }
+          $nativeDeps = Join-Path $env:RUNNER_TEMP 'pgrazor-native-deps'
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @(
+            "ANDROID_SDK_ROOT=$sdkRoot",
+            "ANDROID_NDK_HOME=$gameplayNdk",
+            "PGRAZOR_ART_NDK=$artNdk",
+            "PGRAZOR_NATIVE_DEPS=$nativeDeps"
+          )
+
+      - name: Prepare pinned native sources
+        run: |
+          python -B tools/prepare_native.py --download
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B pgrazor/art_build.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Prepare pinned DEX test dependencies
+        run: python -c "import sys; sys.path.insert(0, 'pgrazor'); import dex_bridges; dex_bridges.dependencies(download=True)"
+
+      - name: Run repository checks
+        run: python -B tools/check.py
+
+      - name: Validate build secrets and configure temporary signing path
+        env:
+          PGRAZOR_INPUT_URL: ${{ secrets.PGRAZOR_INPUT_URL }}
+          PGRAZOR_KEYSTORE_BASE64: ${{ secrets.PGRAZOR_KEYSTORE_BASE64 }}
+        run: |
+          foreach ($name in @('PGRAZOR_INPUT_URL','PGRAZOR_KEYSTORE_BASE64','PGRAZOR_KEY_ALIAS','PGRAZOR_STORE_PASSWORD','PGRAZOR_KEY_PASSWORD')) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Missing required Actions secret: $name"
+            }
+          }
+          $keyPath = Join-Path $env:RUNNER_TEMP 'pgrazor-signing.jks'
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value "PGRAZOR_KEYSTORE=$keyPath"
+
+      - name: Download and verify private original game input
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PGRAZOR_INPUT_URL: ${{ secrets.PGRAZOR_INPUT_URL }}
+          PGRAZOR_KEYSTORE_BASE64: ${{ secrets.PGRAZOR_KEYSTORE_BASE64 }}
+        run: python -B tools/private_input.py
+
+      - name: Build playable non-root package
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          GOOGLE_BROWSER_LOGIN: ${{ inputs.google_browser_login }}
+        run: |
+          if (![string]::IsNullOrWhiteSpace($env:RELEASE_VERSION)) {
+            $env:PGRAZOR_VERSION = $env:RELEASE_VERSION
+          }
+          $arguments = @('--apk','pgrazor/input/game.apkm')
+          if ($env:GOOGLE_BROWSER_LOGIN -eq 'true') {
+            $arguments += '--google-browser-login'
+          }
+          python -B pgrazor/nonroot.py @arguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package and verify single installable APK
+        run: |
+          $candidate = Get-ChildItem -LiteralPath 'pgrazor/build/nonroot' -Directory |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'report.json') } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (!$candidate) { throw 'No successful non-root build run was produced' }
+          python -B pgrazor/release_apk.py --run $candidate.FullName --output dist/apk
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $apk = Join-Path (Get-Location) 'dist/apk/PGRazor.apk'
+          $sums = Join-Path (Get-Location) 'dist/apk/SHA256SUMS.txt'
+          $info = Join-Path (Get-Location) 'dist/apk/build-info.json'
+          foreach ($path in @($apk,$sums,$info)) {
+            if (!(Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing APK build output: $path" }
+          }
+          & (Join-Path $env:ANDROID_HOME 'build-tools/36.0.0/apksigner.bat') verify $apk
+          if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed' }
+          $actual = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
+          $manifest = Get-Content -LiteralPath $sums -Raw
+          if ($manifest -notmatch ([regex]::Escape($actual) + '\s+PGRazor\.apk')) {
+            throw 'APK checksum manifest does not match the produced APK'
+          }
+          $receipt = Get-Content -LiteralPath $info -Raw | ConvertFrom-Json
+          if ($receipt.apk_sha256 -ne $actual -or $receipt.source_commit -ne $env:GITHUB_SHA) {
+            throw 'APK build receipt does not match this workflow run'
+          }
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: PGRazor-installable-APK
+          path: |
+            dist/apk/PGRazor.apk
+            dist/apk/SHA256SUMS.txt
+            dist/apk/build-info.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove temporary signing key
+        if: always()
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PGRAZOR_KEYSTORE)) { exit 0 }
+          $keyPath = [IO.Path]::GetFullPath($env:PGRAZOR_KEYSTORE)
+          $tempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+          if (!$keyPath.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Signing key is outside runner temp'
+          }
+          if (Test-Path -LiteralPath $keyPath) { Remove-Item -LiteralPath $keyPath }

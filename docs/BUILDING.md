@@ -106,6 +106,22 @@ After device testing, run with `publish` enabled to create one release containin
 
 Both upload and publication verify all three downloads against their checksums and build receipts, check that the game/release versions match, and confirm that the Root APK embeds the exact published module ZIP. Source CI also compiles the Root installer without game input or signing secrets. The signing key remains an Actions secret; keep it unchanged across releases.
 
+## GitHub Actions: standalone installable APK
+
+Use **Actions → Build installable APK → Run workflow** to build a non-root **PGRazor.apk** without creating a GitHub release or requiring a release tag. The completed run publishes a **PGRazor-installable-APK** artifact containing the APK, SHA-256 manifest, and build receipt. The workflow uses the pinned Windows Android toolchain, runs repository checks, verifies the APK signature and checksum, and removes its temporary signing key.
+
+Configure the same five repository Actions secrets used by the release workflow:
+
+| Secret | Value |
+| --- | --- |
+| `PGRAZOR_INPUT_URL` | HTTPS URL to the supported original APKM, or a GitHub release-asset API URL in this repository |
+| `PGRAZOR_KEYSTORE_BASE64` | Base64-encoded signing keystore |
+| `PGRAZOR_KEY_ALIAS` | Signing alias |
+| `PGRAZOR_STORE_PASSWORD` | Keystore password |
+| `PGRAZOR_KEY_PASSWORD` | Private-key password |
+
+The source game must pass the same exact version, signature, and SHA-256 checks as the release workflow. Set the optional version input only when building a deliberate version override; otherwise the workflow uses `pgrazor/VERSION`. The workflow needs `contents: write` to retrieve the private draft game asset; checkout does not persist the token in Git credentials. This workflow builds the installable non-root APK only; it does not build the rooted installer or publish a release.
+
 ## Discord release announcements
 
 Create an incoming webhook in Discord channel `1562582290536726598` under **Edit Channel → Integrations → Webhooks**. Save its URL as the repository Actions secret **DISCORD_RELEASE_WEBHOOK**. Do not commit the URL.

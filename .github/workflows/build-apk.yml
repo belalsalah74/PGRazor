@@ -53,7 +53,7 @@ jobs:
           "$hash  PGRazor-preview.apk" | Set-Content -LiteralPath 'dist/apk/SHA256SUMS.txt' -Encoding ascii
           @{
             artifact = 'PGRazor-preview.apk'
-            package = 'dev.pgrazor'
+            package = 'dev.pgrazor.preview'
             build_type = 'standalone-controls-preview'
             source_commit = $env:GITHUB_SHA
             apk_sha256 = $hash

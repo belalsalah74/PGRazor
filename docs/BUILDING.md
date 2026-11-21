@@ -120,7 +120,7 @@ Configure the same five repository Actions secrets used by the release workflow:
 | `PGRAZOR_STORE_PASSWORD` | Keystore password |
 | `PGRAZOR_KEY_PASSWORD` | Private-key password |
 
-The source game must pass the same exact version, signature, and SHA-256 checks as the release workflow. Set the optional version input only when building a deliberate version override; otherwise the workflow uses `pgrazor/VERSION`. This workflow builds the installable non-root APK only; it does not build the rooted installer or publish a release.
+The source game must pass the same exact version, signature, and SHA-256 checks as the release workflow. Set the optional version input only when building a deliberate version override; otherwise the workflow uses `pgrazor/VERSION`. The workflow needs `contents: write` to retrieve the private draft game asset; checkout does not persist the token in Git credentials. This workflow builds the installable non-root APK only; it does not build the rooted installer or publish a release.
 
 ## Discord release announcements
 

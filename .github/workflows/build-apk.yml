@@ -145,7 +145,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed' }
           $actual = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
           $manifest = Get-Content -LiteralPath $sums -Raw
-          if ($manifest -notmatch [regex]::Escape($actual) + '\s+PGRazor\.apk') {
+          if ($manifest -notmatch ([regex]::Escape($actual) + '\s+PGRazor\.apk')) {
             throw 'APK checksum manifest does not match the produced APK'
           }
           $receipt = Get-Content -LiteralPath $info -Raw | ConvertFrom-Json

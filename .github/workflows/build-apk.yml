@@ -1,6 +1,9 @@
 name: Build installable APK
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       google_browser_login:

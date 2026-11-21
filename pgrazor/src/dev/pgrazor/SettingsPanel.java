@@ -687,6 +687,7 @@ final class SettingsPanel {
         battleChoice(maxC,6,"Auto Max attack");
         battleChoice(maxC,9,"Auto dodge");
         caption(maxC,"Automatically moves toward nearby Max energy orbs during battle while PGRazor is active.");
+        launch(maxC, "Auto Max Battle", () -> AutoMaxBattleDialog.show(activity));
         battleStatus = caption(battleC, "");
     }
 
@@ -772,6 +773,7 @@ final class SettingsPanel {
         launch(tasks, "Shundo Sniper (Experimental)", () -> ShundoSniper.show(activity));
         launch(tasks, "Shiny Scanner (Experimental)", () -> ShinyScanner.show(activity));
         launch(tasks, "Auto-Raid", () -> AutoRaidDialog.show(activity));
+        launch(tasks, "Auto Max Battle (Dynamax/Gigantamax)", () -> AutoMaxBattleDialog.show(activity));
         launch(tasks, "Daily Incense Session", () -> AutomationPanel.showIncense(activity));
         launch(tasks, "Remote Gym Feeding", () -> AutomationPanel.showRemoteFeed(activity));
         launch(tasks, "Send & Open Gifts", () -> GiftBatchDialog.show(activity));
@@ -864,9 +866,9 @@ final class SettingsPanel {
         summary(1,active("Quick catch",Control.quickSummaryEnabled(),"Auto throw",Control.autoThrow(),"Auto ball",Control.autoBall(),"Curveball",Control.throwCurve(),"Always hit",Control.throwAlwaysHit(),"Berries",Control.encounterBerryEnabled()));
         summary(2,active("Auto-transfer",Control.autoTransferEnabled(),"Evolve first",Control.autoTransferEnabled()&&Control.evolveTransferEnabled(),"IVs shown",Control.ivCatchMode()!=0||Control.ivOwnedMode()!=0||Control.storageIvMode()!=0));
         summary(3,active("Go Plus overlay",Control.vgpOverlay(),"Quick spin",Control.quickSpinEnabled(),"Item cleanup",Control.itemTransferEnabled()));
-        summary(4,active("Smart battling",Control.smartBattle(),"Smart healing",Control.healEnabled(),"Auto attacks",Control.battleOptions()!=0||Control.rocketOptions()!=0,"Gym repeat",Control.gymRepeatEnabled()));
+        summary(4,active("Smart battling",Control.smartBattle(),"Smart healing",Control.healEnabled(),"Auto Max Battle",AutoMaxBattle.running(),"Auto attacks",Control.battleOptions()!=0||Control.rocketOptions()!=0,"Gym repeat",Control.gymRepeatEnabled()));
         summary(5,active("Buddy engine",BuddyEmotionSettings.enabled(),"Auto incubate",Control.autoIncubate(),"Open gifts",(Control.giftOptions()&1)!=0,"Send gifts",(Control.giftOptions()&2)!=0));
-        summary(6,AutoRaid.running()?"Auto-Raid running":ShundoSniper.active()?"Shundo Sniper running":ShinyScanner.enabled()?"Shiny Scanner on":"Shundo, shiny scan, raids, incense, gym feeding, gifts, evolve, research");
+        summary(6,AutoMaxBattle.running()?"Auto Max Battle armed":AutoRaid.running()?"Auto-Raid running":ShundoSniper.active()?"Shundo Sniper running":ShinyScanner.enabled()?"Shiny Scanner on":"Shundo, shiny scan, raids, incense, gym feeding, gifts, evolve, research");
         summary(7,"Halloween · Go Wild");
         summary(8,"UI "+Control.uiScalePercent()+"% · "+(Control.darkTheme()?"Dark":"Light")+" theme"+(Control.skipCutscenes()?" · Skip cutscenes":""));
         summary(9,"Accounts, export / import, run log, diagnostics");
